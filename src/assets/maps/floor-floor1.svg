@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+    <rect x="0" y="0" width="1200" height="800" fill="#f8f9fa" />
+    <rect x="100" y="100" width="1000" height="600" fill="#e9ecef" stroke="#495057" stroke-width="2" />
+    
+    <!-- Floor Label -->
+    <text x="600" y="50" font-family="Arial" font-size="24" text-anchor="middle" fill="#212529">
+      FLOOR1 FLOOR MAP
+    </text>
+    
+    <!-- Rooms -->
+    <rect x="150" y="150" width="200" height="150" fill="#fff" stroke="#495057" stroke-width="1" />
+    <text x="250" y="225" font-family="Arial" font-size="16" text-anchor="middle" fill="#212529">Room 101</text>
+    
+    <rect x="400" y="150" width="250" height="150" fill="#fff" stroke="#495057" stroke-width="1" />
+    <text x="525" y="225" font-family="Arial" font-size="16" text-anchor="middle" fill="#212529">Room 102</text>
+    
+    <rect x="700" y="150" width="300" height="200" fill="#fff" stroke="#495057" stroke-width="1" />
+    <text x="850" y="250" font-family="Arial" font-size="16" text-anchor="middle" fill="#212529">Conference Room</text>
+    
+    <rect x="150" y="350" width="300" height="250" fill="#fff" stroke="#495057" stroke-width="1" />
+    <text x="300" y="475" font-family="Arial" font-size="16" text-anchor="middle" fill="#212529">Office Area</text>
+    
+    <rect x="500" y="350" width="150" height="100" fill="#fff" stroke="#495057" stroke-width="1" />
+    <text x="575" y="400" font-family="Arial" font-size="16" text-anchor="middle" fill="#212529">Storage</text>
+    
+    <rect x="700" y="400" width="300" height="250" fill="#fff" stroke="#495057" stroke-width="1" />
+    <text x="850" y="525" font-family="Arial" font-size="16" text-anchor="middle" fill="#212529">Main Hall</text>
+    
+    <!-- Exits -->
+    <rect x="450" y="600" width="100" height="50" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2" />
+    <text x="500" y="630" font-family="Arial" font-size="16" text-anchor="middle" fill="#2d6a4f">EXIT</text>
+    
+    <rect x="850" y="650" width="100" height="50" fill="#d8f3dc" stroke="#2d6a4f" stroke-width="2" />
+    <text x="900" y="680" font-family="Arial" font-size="16" text-anchor="middle" fill="#2d6a4f">EMERGENCY EXIT</text>
+    
+    <!-- Sample path -->
+    <path d="M 500 600 L 500 525 L 700 525" fill="none" stroke="#3b82f6" stroke-width="3" stroke-dasharray="5,5" />
+    
+    <!-- Scale -->
+    <line x1="100" y1="750" x2="300" y2="750" stroke="#000" stroke-width="2" />
+    <text x="200" y="740" font-family="Arial" font-size="14" text-anchor="middle" fill="#212529">20 meters</text>
+  </svg>
