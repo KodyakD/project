@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Alert, Platform } from 'react-native';
+import { View, Text, StyleSheet, Alert, Platform, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
@@ -12,6 +12,8 @@ export default function GuestLoginScreen() {
   const [scanned, setScanned] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [manualCode, setManualCode] = useState('');
+  const [scannerAvailable, setScannerAvailable] = useState(true);
   const colorScheme = useColorScheme() || 'light';
   const colors = Colors[colorScheme];
   
@@ -25,25 +27,45 @@ export default function GuestLoginScreen() {
   useEffect(() => {
     let mounted = true;
     
-    const requestPermissions = async () => {
+    const checkScannerAvailability = async () => {
       try {
-        // Try to dynamically import the barcode scanner to prevent errors
-        // when the native module isn't available
-        const { BarCodeScanner } = await import('expo-barcode-scanner');
-        const { status } = await BarCodeScanner.requestPermissionsAsync();
+        if (Platform.OS === 'web') {
+          setScannerAvailable(false);
+          return;
+        }
+        
+        // Check if the module exists without importing it directly
+        const hasModule = await import('expo-barcode-scanner')
+          .then(() => true)
+          .catch(() => false);
+          
         if (mounted) {
-          setHasPermission(status === 'granted');
+          setScannerAvailable(hasModule);
+          
+          if (!hasModule) {
+            setError('Barcode scanner is not available on this device.');
+            return;
+          }
+          
+          // Only request permission if the module is available
+          if (hasModule) {
+            const { BarCodeScanner } = await import('expo-barcode-scanner');
+            const { status } = await BarCodeScanner.requestPermissionsAsync();
+            if (mounted) {
+              setHasPermission(status === 'granted');
+            }
+          }
         }
       } catch (e) {
-        console.log('Could not load barcode scanner:', e);
+        console.log('Error checking barcode scanner:', e);
         if (mounted) {
-          setHasPermission(false);
+          setScannerAvailable(false);
           setError('Barcode scanner is not available on this device.');
         }
       }
     };
     
-    requestPermissions();
+    checkScannerAvailability();
     
     return () => {
       mounted = false;
@@ -56,7 +78,7 @@ export default function GuestLoginScreen() {
     setError('');
 
     try {
-      // Validate QR code format (implement your own validation)
+      // Validate QR code format
       if (!data.startsWith('FIRERESCUE-GUEST-')) {
         throw new Error('Invalid QR code. Please scan a valid Fire Rescue guest access code.');
       }
@@ -79,14 +101,99 @@ export default function GuestLoginScreen() {
     }
   };
 
-  const handleScanAgain = () => {
-    setScanned(false);
+  const handleManualCodeSubmit = async () => {
+    if (!manualCode) {
+      setError('Please enter a valid access code');
+      return;
+    }
+    
+    setLoading(true);
     setError('');
+    
+    try {
+      // Similar validation as your QR code logic
+      if (!manualCode.startsWith('FIRERESCUE-GUEST-')) {
+        throw new Error('Invalid access code format');
+      }
+      
+      await loginAsGuest(manualCode);
+      
+      Alert.alert(
+        'Success',
+        'Guest access granted. You will have limited access to the app.',
+        [{ text: 'OK' }]
+      );
+    } catch (e: any) {
+      setError(e.message || 'Failed to authenticate as guest');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const navigateBack = () => {
     router.back();
   };
+
+  // If scanner is not available, only show manual entry
+  if (!scannerAvailable) {
+    return (
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Guest Access
+          </Text>
+          <Text style={[styles.subtitle, { color: colors.neutral }]}>
+            Enter your guest access code below
+          </Text>
+        </View>
+        
+        {error ? (
+          <View style={[styles.errorContainer, { backgroundColor: colorScheme === 'dark' ? colors.danger + '20' : colors.danger + '10' }]}>
+            <Text style={[styles.errorText, { color: colors.danger }]}>{error}</Text>
+          </View>
+        ) : null}
+        
+        <View style={styles.manualEntryContainer}>
+          <Text style={[styles.manualEntryLabel, { color: colors.text }]}>
+            Enter access code
+          </Text>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={[
+                styles.codeInput,
+                {
+                  color: colors.text,
+                  backgroundColor: colorScheme === 'dark' ? '#333' : '#f0f0f0',
+                  borderColor: error ? colors.danger : colors.border
+                }
+              ]}
+              value={manualCode}
+              onChangeText={setManualCode}
+              placeholder="FIRERESCUE-GUEST-XXXXX"
+              placeholderTextColor={colors.textSecondary}
+            />
+            <Button
+              title="Submit"
+              onPress={handleManualCodeSubmit}
+              variant="primary"
+              loading={loading}
+              style={styles.submitButton}
+            />
+          </View>
+        </View>
+        
+        <View style={styles.buttonContainer}>
+          <Button 
+            title="Back to Login"
+            onPress={navigateBack} 
+            variant="secondary"
+            style={styles.backButton}
+          />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   if (hasPermission === null) {
     return (
@@ -161,11 +268,46 @@ export default function GuestLoginScreen() {
         </View>
       ) : null}
 
+      <View style={styles.dividerContainer}>
+        <View style={styles.dividerLine} />
+        <Text style={[styles.dividerText, { color: colors.textSecondary }]}>OR</Text>
+        <View style={styles.dividerLine} />
+      </View>
+
+      <View style={styles.manualEntryContainer}>
+        <Text style={[styles.manualEntryLabel, { color: colors.text }]}>
+          Enter access code manually
+        </Text>
+        <View style={styles.inputRow}>
+          <TextInput
+            style={[
+              styles.codeInput,
+              {
+                color: colors.text,
+                backgroundColor: colorScheme === 'dark' ? '#333' : '#f0f0f0',
+                borderColor: error ? colors.danger : colors.border
+              }
+            ]}
+            value={manualCode}
+            onChangeText={setManualCode}
+            placeholder="FIRERESCUE-GUEST-XXXXX"
+            placeholderTextColor={colors.textSecondary}
+          />
+          <Button
+            title="Submit"
+            onPress={handleManualCodeSubmit}
+            variant="primary"
+            loading={loading}
+            style={styles.submitButton}
+          />
+        </View>
+      </View>
+
       <View style={styles.buttonContainer}>
         {scanned && (
           <Button 
             title="Scan Again"
-            onPress={handleScanAgain} 
+            onPress={() => setScanned(false)} 
             loading={loading}
             variant="primary"
             style={styles.button}
@@ -184,17 +326,41 @@ export default function GuestLoginScreen() {
 
 // Separate component to load the barcode scanner dynamically
 function BarCodeScannerComponent({ onScan }: { onScan: any }) {
-  // Use React.lazy and Suspense to load the component only when needed
   const [BarCodeScanner, setBarCodeScanner] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
-    // Dynamically import the barcode scanner
-    import('expo-barcode-scanner').then(module => {
-      setBarCodeScanner(() => module.BarCodeScanner);
-    }).catch(error => {
-      console.error('Error loading BarCodeScanner:', error);
-    });
+    let mounted = true;
+    
+    const loadScanner = async () => {
+      try {
+        // Use dynamic import
+        const module = await import('expo-barcode-scanner');
+        if (mounted) {
+          setBarCodeScanner(() => module.BarCodeScanner);
+        }
+      } catch (err) {
+        console.error('Error loading BarCodeScanner:', err);
+        if (mounted) {
+          setError('Could not load barcode scanner');
+        }
+      }
+    };
+    
+    loadScanner();
+    
+    return () => {
+      mounted = false;
+    };
   }, []);
+  
+  if (error) {
+    return (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#fff' }}>Scanner error: {error}</Text>
+      </View>
+    );
+  }
   
   if (!BarCodeScanner) {
     return (
@@ -284,5 +450,43 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+    paddingHorizontal: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e0e0e0',
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    fontSize: 14,
+  },
+  manualEntryContainer: {
+    padding: 24,
+    paddingTop: 0,
+  },
+  manualEntryLabel: {
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  codeInput: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
+  },
+  submitButton: {
+    height: 44,
+  },
 });

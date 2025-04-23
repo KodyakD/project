@@ -1,197 +1,223 @@
 // filepath: mobile-app/project/src/context/AuthContext.tsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import * as React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
-// Define user types
-type UserRole = 'admin' | 'user' | 'guest';
-
-interface User {
-  id: string;
-  email?: string;
-  role: UserRole;
-  name?: string;
+// Define the auth state type
+interface AuthState {
+  initialized: boolean;
+  isAuthenticated: boolean;
+  isAnonymous: boolean;
+  user: any | null;
 }
 
-// Auth context interface
+// Define the auth context type
 interface AuthContextType {
-  user: User | null;
-  isLoading: boolean;
-  error: string | null;
+  authState: AuthState;
   login: (email: string, password: string) => Promise<void>;
-  loginAsGuest: (guestCode: string) => Promise<void>;
+  loginWithQrCode: (code: string) => Promise<void>;
   logout: () => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  error: string | null;
+  clearError: () => void;
 }
 
-// Storage key for persisting user data
-const USER_STORAGE_KEY = '@fire_rescue_user';
-
-// Create the context with default values
-const AuthContext = createContext<AuthContextType>({
+// Create the auth context with default values
+const defaultState: AuthState = {
+  initialized: false,
+  isAuthenticated: false,
+  isAnonymous: false,
   user: null,
-  isLoading: true,
-  error: null,
-  login: async () => {},
-  loginAsGuest: async () => {},
-  logout: async () => {},
-  resetPassword: async () => {},
-});
-
-// Auth Provider component
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load stored user on mount
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const storedUser = await AsyncStorage.getItem(USER_STORAGE_KEY);
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
-        }
-      } catch (err) {
-        console.error('Failed to load user from storage', err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadUser();
-  }, []);
-
-  // Login function
-  const login = async (email: string, password: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock authentication - in a real app this would call your auth API
-      if (email === 'admin@example.com' && password === 'password') {
-        const userData: User = {
-          id: '1',
-          email,
-          name: 'Admin User',
-          role: 'admin',
-        };
-        
-        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
-        setUser(userData);
-      } else if (email === 'user@example.com' && password === 'password') {
-        const userData: User = {
-          id: '2',
-          email,
-          name: 'Regular User',
-          role: 'user',
-        };
-        
-        await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
-        setUser(userData);
-      } else {
-        throw new Error('Invalid email or password');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
-      console.error('Login error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Guest login function
-  const loginAsGuest = async (guestCode: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      if (!guestCode.startsWith('FIRERESCUE-GUEST-')) {
-        throw new Error('Invalid guest code format');
-      }
-      
-      const userData: User = {
-        id: `guest-${Date.now()}`,
-        role: 'guest',
-      };
-      
-      await AsyncStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userData));
-      setUser(userData);
-    } catch (err: any) {
-      setError(err.message || 'Guest login failed');
-      console.error('Guest login error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Logout function
-  const logout = async () => {
-    try {
-      setIsLoading(true);
-      await AsyncStorage.removeItem(USER_STORAGE_KEY);
-      setUser(null);
-    } catch (err) {
-      console.error('Logout error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Password reset function
-  const resetPassword = async (email: string) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Basic validation
-      if (!email.includes('@')) {
-        throw new Error('Invalid email address');
-      }
-      
-      // In a real app, this would trigger a password reset email
-      console.log('Password reset requested for:', email);
-    } catch (err: any) {
-      setError(err.message || 'Password reset failed');
-      console.error('Password reset error:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Provide auth context to children
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        error,
-        login,
-        loginAsGuest,
-        logout,
-        resetPassword,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
 };
 
-// Hook to use auth context
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
+const defaultContext: AuthContextType = {
+  authState: defaultState,
+  login: async () => {},
+  loginWithQrCode: async () => {},
+  logout: async () => {},
+  error: null,
+  clearError: () => {},
+};
+
+// Create context
+const AuthContext = React.createContext<AuthContextType>(defaultContext);
+
+// Auth Provider component - class-based to avoid hooks issues
+export class AuthProvider extends React.Component<{children: React.ReactNode}, {authState: AuthState, error: string | null}> {
+  constructor(props: {children: React.ReactNode}) {
+    super(props);
+    this.state = {
+      authState: defaultState,
+      error: null
+    };
+
+    // Bind methods
+    this.login = this.login.bind(this);
+    this.loginWithQrCode = this.loginWithQrCode.bind(this);
+    this.logout = this.logout.bind(this);
+    this.clearError = this.clearError.bind(this);
+  }
+
+  componentDidMount() {
+    this.initializeAuth();
+  }
+
+  async initializeAuth() {
+    try {
+      // Check if user data exists in storage
+      const userData = await AsyncStorage.getItem('user_data');
+      
+      if (userData) {
+        // User is logged in
+        const user = JSON.parse(userData);
+        this.setState({
+          authState: {
+            initialized: true,
+            isAuthenticated: true,
+            isAnonymous: user.isAnonymous || false,
+            user,
+          }
+        });
+      } else {
+        // No user logged in
+        this.setState({
+          authState: {
+            initialized: true,
+            isAuthenticated: false,
+            isAnonymous: false,
+            user: null,
+          }
+        });
+      }
+    } catch (err) {
+      console.error('Error initializing auth:', err);
+      this.setState({
+        authState: {
+          initialized: true,
+          isAuthenticated: false,
+          isAnonymous: false,
+          user: null,
+        }
+      });
+    }
+  }
+
+  async login(email: string, password: string) {
+    try {
+      // For now, just a mock implementation
+      if (email && password) {
+        const mockUser = {
+          id: '123',
+          email,
+          displayName: email.split('@')[0],
+          isAnonymous: false,
+        };
+        
+        // Store user data
+        await AsyncStorage.setItem('user_data', JSON.stringify(mockUser));
+        
+        // Update auth state
+        this.setState({
+          authState: {
+            initialized: true,
+            isAuthenticated: true,
+            isAnonymous: false,
+            user: mockUser,
+          },
+          error: null
+        });
+      } else {
+        throw new Error('Email and password are required');
+      }
+    } catch (err: any) {
+      this.setState({ error: err.message || 'Login failed' });
+      throw err;
+    }
+  }
+
+  async loginWithQrCode(code: string) {
+    try {
+      // For now, just a mock implementation
+      if (code) {
+        const mockUser = {
+          id: 'guest-' + Date.now(),
+          displayName: 'Guest User',
+          isAnonymous: true,
+          guestCode: code,
+        };
+        
+        // Store user data
+        await AsyncStorage.setItem('user_data', JSON.stringify(mockUser));
+        
+        // Update auth state
+        this.setState({
+          authState: {
+            initialized: true,
+            isAuthenticated: true,
+            isAnonymous: true,
+            user: mockUser,
+          },
+          error: null
+        });
+      } else {
+        throw new Error('Invalid QR code');
+      }
+    } catch (err: any) {
+      this.setState({ error: err.message || 'QR code login failed' });
+      throw err;
+    }
+  }
+
+  async logout() {
+    try {
+      // Clear user data
+      await AsyncStorage.removeItem('user_data');
+      
+      // Update auth state
+      this.setState({
+        authState: {
+          initialized: true,
+          isAuthenticated: false,
+          isAnonymous: false,
+          user: null,
+        },
+        error: null
+      });
+    } catch (err: any) {
+      this.setState({ error: err.message || 'Logout failed' });
+      throw err;
+    }
+  }
+
+  clearError() {
+    this.setState({ error: null });
+  }
+
+  render() {
+    const contextValue = {
+      authState: this.state.authState,
+      login: this.login,
+      loginWithQrCode: this.loginWithQrCode,
+      logout: this.logout,
+      error: this.state.error,
+      clearError: this.clearError,
+    };
+
+    return (
+      <AuthContext.Provider value={contextValue}>
+        {this.props.children}
+      </AuthContext.Provider>
+    );
+  }
+}
+
+// Hook to use the auth context
+export function useAuth() {
+  const context = React.useContext(AuthContext);
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
 
-export default AuthContext;
+// Default export
+export default useAuth;

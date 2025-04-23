@@ -1,130 +1,103 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl, ScrollView } from 'react-native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { StyleSheet, View, Text, TouchableOpacity, FlatList, RefreshControl, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, Bell, Calendar, Layers, Info } from '@expo/vector-icons/Feather';
+import { AlertTriangle, Bell, Calendar, Layers, Info, Check, Trash2 } from '@expo/vector-icons/Feather';
 import Colors from '../../src/constants/Colors';
 import Card from '../../src/components/ui/Card';
 import { Loading } from '../../src/components/ui/Loading';
 import { ErrorDisplay } from '../../src/components/ui/ErrorDisplay';
-
-type NotificationType = 'alert' | 'info' | 'schedule' | 'update';
-
-interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  timestamp: string;
-  read: boolean;
-}
-
-// Mock data for notifications
-const MOCK_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    title: 'Emergency: Fire Alarm in Engineering Building',
-    message: 'Fire alarm has been triggered on floor 2. Please evacuate immediately following safety protocols.',
-    type: 'alert',
-    timestamp: '2 minutes ago',
-    read: false,
-  },
-  {
-    id: '2',
-    title: 'Evacuation Drill Next Week',
-    message: 'A scheduled evacuation drill will take place on Monday at 10:00 AM. Please review evacuation routes.',
-    type: 'schedule',
-    timestamp: '2 hours ago',
-    read: true,
-  },
-  {
-    id: '3',
-    title: 'New Safety Protocol Available',
-    message: 'Updated safety protocols for chemical handling have been published. Please review the changes.',
-    type: 'update',
-    timestamp: '1 day ago',
-    read: true,
-  },
-  {
-    id: '4',
-    title: 'System Maintenance',
-    message: 'Emergency alerts system will undergo maintenance tonight from 2 AM to 4 AM.',
-    type: 'info',
-    timestamp: '2 days ago',
-    read: true,
-  },
-  {
-    id: '5',
-    title: 'Weather Alert: Heavy Rainfall',
-    message: 'Heavy rainfall expected this afternoon. Be cautious of potential flooding in lower campus areas.',
-    type: 'alert',
-    timestamp: '3 days ago',
-    read: true,
-  },
-];
+import { useNotifications } from '../../src/hooks/useNotifications';
+import { NotificationType, NotificationData } from '../../src/services/notificationService';
+import Button from '../../src/components/ui/Button';
+import { formatDistanceToNow } from 'date-fns';
 
 export default function NotificationsScreen() {
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
   
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { 
+    notifications, 
+    unreadCount, 
+    loading, 
+    refreshNotifications, 
+    markAsRead, 
+    markAllAsRead, 
+    clearAll 
+  } = useNotifications();
+  
   const [refreshing, setRefreshing] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [filter, setFilter] = useState<NotificationType | 'all'>('all');
 
-  useEffect(() => {
-    // Simulate loading data from an API
-    const timer = setTimeout(() => {
-      setNotifications(MOCK_NOTIFICATIONS);
-      setLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
-
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    // Simulate refreshing data
-    setTimeout(() => {
-      setNotifications(MOCK_NOTIFICATIONS);
-      setRefreshing(false);
-    }, 1500);
-  }, []);
+    await refreshNotifications();
+    setRefreshing(false);
+  };
 
-  const markAsRead = (id: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === id 
-          ? { ...notification, read: true } 
-          : notification
-      )
+  const handleMarkAsRead = async (id: string) => {
+    await markAsRead(id);
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await markAllAsRead();
+  };
+
+  const handleClearAll = () => {
+    Alert.alert(
+      "Clear All Notifications",
+      "Are you sure you want to clear all notifications? This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Clear All", 
+          style: "destructive", 
+          onPress: async () => {
+            await clearAll();
+          }
+        }
+      ]
     );
   };
 
-  const viewNotification = (notification: Notification) => {
-    markAsRead(notification.id);
-    router.push(`/notifications/${notification.id}`);
+  const viewNotification = (notification: NotificationData) => {
+    handleMarkAsRead(notification.id);
+    
+    // Navigate based on notification type
+    if (notification.data?.incidentId) {
+      router.push(`/incidents/${notification.data.incidentId}`);
+    } else if (notification.data?.emergencyId) {
+      router.push(`/emergency/${notification.data.emergencyId}`);
+    } else if (notification.data?.maintenanceId) {
+      router.push(`/maintenance/${notification.data.maintenanceId}`);
+    } else {
+      // Default notification detail view
+      router.push(`/notification-details?id=${notification.id}`);
+    }
   };
 
-  const getFilteredNotifications = () => {
+  const getFilteredNotifications = useMemo(() => {
     if (filter === 'all') return notifications;
     return notifications.filter(notification => notification.type === filter);
-  };
+  }, [notifications, filter]);
 
   const getTypeIcon = (type: NotificationType, size: number = 20) => {
     switch (type) {
-      case 'alert':
+      case 'emergency':
         return <AlertTriangle size={size} color={colors.critical} />;
-      case 'info':
+      case 'system_announcement':
         return <Info size={size} color={colors.info} />;
-      case 'schedule':
-        return <Calendar size={size} color={colors.warning} />;
-      case 'update':
+      case 'maintenance_alert':
+        return <Layers size={size} color={colors.warning} />;
+      case 'incident_assigned':
+      case 'incident_updated':
+      case 'incident_resolved':
         return <Layers size={size} color={colors.success} />;
+      case 'user_mention':
+        return <Bell size={size} color={colors.primary} />;
       default:
         return <Bell size={size} color={colors.primary} />;
     }
@@ -132,22 +105,23 @@ export default function NotificationsScreen() {
 
   const filterButtons = [
     { label: 'All', value: 'all' },
-    { label: 'Alerts', value: 'alert' },
-    { label: 'Updates', value: 'update' },
-    { label: 'Scheduled', value: 'schedule' },
-    { label: 'Info', value: 'info' },
+    { label: 'Emergency', value: 'emergency' },
+    { label: 'Incidents', value: 'incident_updated' },
+    { label: 'Maintenance', value: 'maintenance_alert' },
+    { label: 'System', value: 'system_announcement' },
   ];
 
-  if (loading) {
+  if (loading && !refreshing) {
     return <Loading fullScreen message="Loading notifications..." />;
   }
 
-  if (error) {
-    return <ErrorDisplay fullScreen message={error} onRetry={() => setError(null)} />;
-  }
-
-  const filteredNotifications = getFilteredNotifications();
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const formatTime = (timestamp: string) => {
+    try {
+      return formatDistanceToNow(new Date(timestamp), { addSuffix: true });
+    } catch (e) {
+      return timestamp;
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -161,6 +135,32 @@ export default function NotificationsScreen() {
         )}
       </View>
       
+      <View style={styles.actionBar}>
+        {unreadCount > 0 && (
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: colors.card }]} 
+            onPress={handleMarkAllAsRead}
+          >
+            <Check size={16} color={colors.success} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>
+              Mark all read
+            </Text>
+          </TouchableOpacity>
+        )}
+        
+        {notifications.length > 0 && (
+          <TouchableOpacity 
+            style={[styles.actionButton, { backgroundColor: colors.card }]} 
+            onPress={handleClearAll}
+          >
+            <Trash2 size={16} color={colors.error} />
+            <Text style={[styles.actionButtonText, { color: colors.text }]}>
+              Clear all
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
       <View style={styles.content}>
         {/* Filter Tabs */}
         <ScrollableFilterTabs 
@@ -171,9 +171,9 @@ export default function NotificationsScreen() {
         />
         
         {/* Notifications List */}
-        {filteredNotifications.length > 0 ? (
+        {getFilteredNotifications.length > 0 ? (
           <FlatList
-            data={filteredNotifications}
+            data={getFilteredNotifications}
             keyExtractor={item => item.id}
             refreshControl={
               <RefreshControl 
@@ -189,6 +189,7 @@ export default function NotificationsScreen() {
                 onPress={() => viewNotification(item)} 
                 getTypeIcon={getTypeIcon}
                 colors={colors}
+                formatTime={formatTime}
               />
             )}
           />
@@ -199,10 +200,17 @@ export default function NotificationsScreen() {
               No notifications
             </Text>
             <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
-              {filter === 'all' 
-                ? 'You don\'t have any notifications yet'
-                : `You don't have any ${filter} notifications`}
+              {filter !== 'all' 
+                ? `No ${filter.replace('_', ' ')} notifications found` 
+                : 'You currently have no notifications'}
             </Text>
+            <Button 
+              title="Refresh" 
+              onPress={onRefresh} 
+              variant="outlined"
+              style={styles.refreshButton}
+              loading={refreshing}
+            />
           </View>
         )}
       </View>
@@ -210,7 +218,6 @@ export default function NotificationsScreen() {
   );
 }
 
-// Filter tabs component
 function ScrollableFilterTabs({ 
   activeFilter, 
   onFilterChange, 
@@ -223,82 +230,97 @@ function ScrollableFilterTabs({
   colors: any;
 }) {
   return (
-    <View style={styles.filterContainer}>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filtersScroll}
-      >
-        {filters.map(filter => (
-          <TouchableOpacity
-            key={filter.value}
+    <ScrollView 
+      horizontal 
+      showsHorizontalScrollIndicator={false} 
+      contentContainerStyle={styles.filtersContainer}
+    >
+      {filters.map((filter) => (
+        <TouchableOpacity
+          key={filter.value}
+          style={[
+            styles.filterButton,
+            activeFilter === filter.value && styles.activeFilterButton,
+            { 
+              backgroundColor: colors.card,
+              borderColor: activeFilter === filter.value ? colors.primary : 'transparent'
+            }
+          ]}
+          onPress={() => onFilterChange(filter.value)}
+        >
+          <Text 
             style={[
-              styles.filterButton,
-              activeFilter === filter.value && { 
-                backgroundColor: colors.primary + '20',  // 20% opacity
-                borderColor: colors.primary
-              },
-              activeFilter !== filter.value && { borderColor: colors.border }
+              styles.filterText,
+              activeFilter === filter.value && styles.activeFilterText,
+              { 
+                color: activeFilter === filter.value ? colors.primary : colors.textSecondary
+              }
             ]}
-            onPress={() => onFilterChange(filter.value)}
           >
-            <Text style={[
-              styles.filterText, 
-              { color: activeFilter === filter.value ? colors.primary : colors.textSecondary }
-            ]}>
-              {filter.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
+            {filter.label}
+          </Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 }
 
-// Notification card component
 function NotificationCard({ 
   notification, 
   onPress, 
   getTypeIcon,
-  colors
+  colors,
+  formatTime
 }: { 
-  notification: Notification; 
+  notification: NotificationData; 
   onPress: () => void; 
-  getTypeIcon: (type: NotificationType) => React.ReactNode;
+  getTypeIcon: (type: NotificationType, size?: number) => React.ReactNode;
   colors: any;
+  formatTime: (timestamp: string) => string;
 }) {
   return (
-    <Card style={[
-      styles.notificationCard, 
-      !notification.read && { borderLeftColor: colors.primary, borderLeftWidth: 3 }
-    ]}>
-      <TouchableOpacity style={styles.notificationItem} onPress={onPress}>
-        <View style={styles.notificationIcon}>
-          {getTypeIcon(notification.type)}
-        </View>
-        <View style={styles.notificationContent}>
-          <Text 
-            style={[
-              styles.notificationTitle, 
-              { color: colors.text },
-              !notification.read && { fontWeight: '700' }
-            ]}
-            numberOfLines={1}
-          >
-            {notification.title}
-          </Text>
-          <Text 
-            style={[styles.notificationMessage, { color: colors.textSecondary }]}
-            numberOfLines={2}
-          >
-            {notification.message}
-          </Text>
-          <Text style={[styles.notificationTime, { color: colors.textMuted }]}>
-            {notification.timestamp}
+    <TouchableOpacity onPress={onPress}>
+      <Card style={[
+        styles.notificationCard, 
+        !notification.read && styles.unreadCard,
+        { backgroundColor: colors.card }
+      ]}>
+        <View style={styles.cardHeader}>
+          {getTypeIcon(notification.type, 16)}
+          <Text style={[
+            styles.notificationTime,
+            { color: colors.textSecondary }
+          ]}>
+            {formatTime(notification.createdAt)}
           </Text>
         </View>
-      </TouchableOpacity>
-    </Card>
+        
+        <Text 
+          style={[
+            styles.notificationTitle,
+            !notification.read && styles.unreadTitle,
+            { color: colors.text }
+          ]}
+          numberOfLines={2}
+        >
+          {notification.title}
+        </Text>
+        
+        <Text 
+          style={[
+            styles.notificationBody,
+            { color: colors.textSecondary }
+          ]}
+          numberOfLines={3}
+        >
+          {notification.body}
+        </Text>
+        
+        {!notification.read && (
+          <View style={[styles.unreadIndicator, { backgroundColor: colors.primary }]} />
+        )}
+      </Card>
+    </TouchableOpacity>
   );
 }
 
@@ -309,7 +331,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   title: {
     fontSize: 24,
@@ -320,85 +343,113 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
-    minWidth: 24,
-    alignItems: 'center',
   },
   badgeText: {
     color: 'white',
     fontSize: 12,
     fontWeight: 'bold',
   },
+  actionBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    marginLeft: 4,
+  },
   content: {
     flex: 1,
   },
-  filterContainer: {
+  filtersContainer: {
     paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  filtersScroll: {
-    paddingRight: 16,
+    paddingBottom: 12,
   },
   filterButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
     marginRight: 8,
-    borderWidth: 1,
+    borderWidth: 2,
+  },
+  activeFilterButton: {
+    borderWidth: 2,
   },
   filterText: {
     fontSize: 14,
-    fontWeight: '500',
+  },
+  activeFilterText: {
+    fontWeight: '600',
   },
   notificationsList: {
-    padding: 16,
-    paddingTop: 0,
+    paddingHorizontal: 16,
+    paddingBottom: 24,
   },
   notificationCard: {
     marginBottom: 12,
-    overflow: 'hidden',
+    padding: 14,
+    borderRadius: 12,
   },
-  notificationItem: {
+  unreadCard: {
+    borderLeftWidth: 3,
+  },
+  cardHeader: {
     flexDirection: 'row',
-    padding: 16,
-  },
-  notificationIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  notificationContent: {
-    flex: 1,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    marginBottom: 4,
-  },
-  notificationMessage: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   notificationTime: {
     fontSize: 12,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  unreadTitle: {
+    fontWeight: '600',
+  },
+  notificationBody: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  unreadIndicator: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    top: 14,
+    left: 14,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    padding: 24,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 16,
   },
   emptySubtext: {
     fontSize: 14,
     textAlign: 'center',
     marginTop: 8,
+    paddingHorizontal: 24,
+  },
+  refreshButton: {
+    marginTop: 24,
+    minWidth: 120,
   },
 });

@@ -1,0 +1,229 @@
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
+import { 
+  CheckCircle, 
+  AlertTriangle, 
+  AlertCircle, 
+  XCircle, 
+  Info,
+  ChevronRight
+} from '@expo/vector-icons/Feather';
+import { useRouter } from 'expo-router';
+import { useToast } from '../../context/ToastContext';
+
+// Safety status types
+export type SafetyStatusLevel = 'normal' | 'advisory' | 'warning' | 'critical' | 'emergency';
+
+interface SafetyStatus {
+  level: SafetyStatusLevel;
+  title: string;
+  message: string;
+  updatedAt: Date;
+  actionUrl?: string;
+}
+
+interface SafetyStatusIndicatorProps {
+  onPress?: () => void;
+}
+
+export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicatorProps) {
+  const { colors } = useTheme();
+  const router = useRouter();
+  const toast = useToast();
+  
+  // In a real app, this would come from a Firebase subscription
+  // For now, we'll simulate it with static data
+  const [status, setStatus] = useState<SafetyStatus>({
+    level: 'normal',
+    title: 'All Systems Normal',
+    message: 'No safety concerns or active incidents on campus.',
+    updatedAt: new Date(),
+  });
+
+  // For demo purposes, simulate a status change after component mount
+  useEffect(() => {
+    // Simulated data - in real app, this would be a Firebase listener
+    const DEMO_STATUSES: SafetyStatus[] = [
+      {
+        level: 'normal',
+        title: 'All Systems Normal',
+        message: 'No safety concerns or active incidents on campus.',
+        updatedAt: new Date(),
+      },
+      {
+        level: 'advisory',
+        title: 'Weather Advisory',
+        message: 'Heavy rain expected this afternoon. Please use caution when walking on campus.',
+        updatedAt: new Date(),
+        actionUrl: '/weather-advisory',
+      },
+      {
+        level: 'warning',
+        title: 'Maintenance Warning',
+        message: 'Building B second floor restrooms closed for maintenance.',
+        updatedAt: new Date(),
+        actionUrl: '/maintenance-notices',
+      },
+    ];
+    
+    // Randomly select a status (excluding emergency) for demo purposes
+    const randomIndex = Math.floor(Math.random() * DEMO_STATUSES.length);
+    setStatus(DEMO_STATUSES[randomIndex]);
+  }, []);
+
+  // Get icon based on status level
+  const getStatusIcon = (level: SafetyStatusLevel, size: number = 24) => {
+    switch (level) {
+      case 'normal':
+        return <CheckCircle size={size} color={colors.success} />;
+      case 'advisory':
+        return <Info size={size} color={colors.info} />;
+      case 'warning':
+        return <AlertTriangle size={size} color={colors.warning} />;
+      case 'critical':
+        return <AlertCircle size={size} color={colors.error} />;
+      case 'emergency':
+        return <XCircle size={size} color={colors.error} />;
+      default:
+        return <CheckCircle size={size} color={colors.success} />;
+    }
+  };
+
+  // Get background color based on status level
+  const getBackgroundColor = (level: SafetyStatusLevel) => {
+    switch (level) {
+      case 'normal':
+        return colors.success + '15'; // 15% opacity
+      case 'advisory':
+        return colors.info + '15';
+      case 'warning':
+        return colors.warning + '15';
+      case 'critical':
+        return colors.error + '15';
+      case 'emergency':
+        return colors.error + '15';
+      default:
+        return colors.success + '15';
+    }
+  };
+
+  // Get border color based on status level
+  const getBorderColor = (level: SafetyStatusLevel) => {
+    switch (level) {
+      case 'normal':
+        return colors.success;
+      case 'advisory':
+        return colors.info;
+      case 'warning':
+        return colors.warning;
+      case 'critical':
+        return colors.error;
+      case 'emergency':
+        return colors.error;
+      default:
+        return colors.success;
+    }
+  };
+
+  // Format the timestamp
+  const formatUpdatedTime = (date: Date) => {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins} min ago`;
+    
+    const hours = Math.floor(diffMins / 60);
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    
+    const days = Math.floor(hours / 24);
+    return `${days} day${days > 1 ? 's' : ''} ago`;
+  };
+
+  // Handle press on the status indicator
+  const handlePress = () => {
+    if (onPress) {
+      onPress();
+    } else if (status.actionUrl) {
+      router.push(status.actionUrl);
+    } else {
+      // Show more details or navigate to a default screen
+      toast?.showToast({
+        type: status.level === 'normal' ? 'success' : status.level === 'advisory' ? 'info' : 'warning',
+        message: status.title,
+        description: status.message,
+      });
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.container,
+        {
+          backgroundColor: getBackgroundColor(status.level),
+          borderColor: getBorderColor(status.level),
+        },
+      ]}
+      onPress={handlePress}
+    >
+      <View style={styles.iconContainer}>
+        {getStatusIcon(status.level)}
+      </View>
+      
+      <View style={styles.contentContainer}>
+        <Text style={[styles.title, { color: colors.text }]}>
+          {status.title}
+        </Text>
+        
+        <Text style={[styles.message, { color: colors.textSecondary }]} numberOfLines={2}>
+          {status.message}
+        </Text>
+        
+        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+          Updated {formatUpdatedTime(status.updatedAt)}
+        </Text>
+      </View>
+      
+      <View style={styles.actionContainer}>
+        <ChevronRight size={20} color={colors.textSecondary} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  iconContainer: {
+    marginRight: 16,
+  },
+  contentContainer: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  message: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  timestamp: {
+    fontSize: 12,
+  },
+  actionContainer: {
+    marginLeft: 8,
+  },
+}); 

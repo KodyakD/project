@@ -156,18 +156,18 @@ export default function ProfileScreen() {
           {/* Language */}
           <TouchableOpacity 
             style={styles.settingItem} 
-            onPress={() => router.push('/settings/language')}
+            onPress={() => router.push('/settings')}
           >
             <View style={styles.settingIconContainer}>
-              <Globe size={20} color={colors.primary} />
+              <Settings size={20} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
-                <Text style={[styles.settingTitle, { color: colors.text }]}>Language</Text>
+                <Text style={[styles.settingTitle, { color: colors.text }]}>All Settings</Text>
                 <ChevronRight size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
-                Change application language
+                View all app settings
               </Text>
             </View>
           </TouchableOpacity>

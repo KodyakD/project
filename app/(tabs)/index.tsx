@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, RefreshControl } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import Plus from '@expo/vector-icons/Feather';
 import { Feather } from '@expo/vector-icons';
 import Colors from '@/constants/Colors';
-import Card, { CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
 import { Loading } from '@/components/ui/Loading';
 import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
 import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
+import SafetyStatusIndicator from '@/components/dashboard/SafetyStatusIndicator';
+import SafetyTipsCarousel from '@/components/dashboard/SafetyTipsCarousel';
+import QuickActionsGrid from '@/components/dashboard/QuickActionsGrid';
+import IncidentOverview from '@/components/dashboard/IncidentOverview';
 
 // Mock data
 const alerts = [
@@ -31,13 +35,11 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeIncidents, setActiveIncidents] = useState(0);
   
   useEffect(() => {
     // Simulate loading data
     const timer = setTimeout(() => {
       setLoading(false);
-      setActiveIncidents(2);
     }, 1000);
     
     return () => clearTimeout(timer);
@@ -47,23 +49,9 @@ export default function Dashboard() {
     setRefreshing(true);
     // Simulate refreshing data
     setTimeout(() => {
-      setActiveIncidents(Math.floor(Math.random() * 3) + 1);
       setRefreshing(false);
     }, 1500);
   }, []);
-  
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return colors.critical;
-      case 'medium':
-        return colors.warning;
-      case 'low':
-        return colors.info;
-      default:
-        return colors.textSecondary;
-    }
-  };
 
   if (loading) {
     return <Loading fullScreen message="Loading dashboard..." />;
@@ -92,94 +80,30 @@ export default function Dashboard() {
           <Text style={[styles.title, { color: colors.text }]}>Dashboard</Text>
         </View>
         
-        {/* Status Summary Card */}
-        <Card style={styles.card}>
-          <CardHeader>
-            <Text style={[styles.cardTitle, { color: colors.text }]}>Status Summary</Text>
-          </CardHeader>
-          <CardContent style={styles.statusContent}>
-            <View style={styles.statusItem}>
-              <Text style={[styles.statusValue, { color: colors.text }]}>{activeIncidents}</Text>
-              <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>Active Alerts</Text>
-            </View>
-            <View style={styles.statusDivider} />
-            <View style={styles.statusItem}>
-              <Text style={[styles.statusValue, { color: colors.text }]}>5</Text>
-              <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>Buildings</Text>
-            </View>
-            <View style={styles.statusDivider} />
-            <View style={styles.statusItem}>
-              <Text style={[styles.statusValue, { color: colors.text }]}>3</Text>
-              <Text style={[styles.statusLabel, { color: colors.textSecondary }]}>Recent Updates</Text>
-            </View>
-          </CardContent>
-        </Card>
+        {/* Safety Status Indicator */}
+        <SafetyStatusIndicator />
         
-        {/* Active Alerts Card */}
-        <Card style={styles.card}>
-          <CardHeader>
-            <View style={styles.cardHeaderContent}>
-              <Text style={[styles.cardTitle, { color: colors.text }]}>Active Alerts</Text>
-              <TouchableOpacity onPress={() => router.push('/alerts')}>
-                <Text style={[styles.viewAll, { color: colors.primary }]}>View All</Text>
-              </TouchableOpacity>
-            </View>
-          </CardHeader>
-          <CardContent>
-            {alerts.length > 0 ? (
-              <View style={styles.alertsList}>
-                {alerts.map((alert) => (
-                  <TouchableOpacity 
-                    key={alert.id} 
-                    style={styles.alertItem}
-                    onPress={() => router.push(`/alerts/${alert.id}`)}
-                  >
-                    <View style={[styles.alertIconContainer, { backgroundColor: getSeverityColor(alert.severity) + '20' }]}>
-                      <Feather name="alert-triangle" size={18} color={getSeverityColor(alert.severity)} />
-                    </View>
-                    <View style={styles.alertContent}>
-                      <Text style={[styles.alertTitle, { color: colors.text }]}>{alert.title}</Text>
-                      <Text style={[styles.alertLocation, { color: colors.textSecondary }]}>{alert.location}</Text>
-                      <Text style={[styles.alertTime, { color: colors.textMuted }]}>{alert.time}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyAlerts}>
-                <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-                  No active alerts at this time
-                </Text>
-              </View>
-            )}
-          </CardContent>
-        </Card>
-        
+        {/* Incident Overview */}
+        <IncidentOverview maxIncidents={2} />
         {/* Quick Actions */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Quick Actions</Text>
-        </View>
+        <QuickActionsGrid title="Quick Actions" showCard={true} actions={quickActions} />
+        <QuickActionsGrid title="Quick Actions" showCard={true} />
         
-        <View style={styles.quickActionsGrid}>
-          {quickActions.map((action) => (
-            <TouchableOpacity 
-              key={action.id} 
-              style={[styles.quickActionItem, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() => router.push(action.route)}
-            >
-              <View style={styles.quickActionIcon}>
-                {action.icon}
-              </View>
-              <Text style={[styles.quickActionTitle, { color: colors.text }]}>{action.title}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        {/* Safety Tips Carousel */}
+        <SafetyTipsCarousel 
+          numTipsToShow={5}
+          autoPlay={true}
+          autoPlayInterval={5000}
+          showControls={true}
+        />
       </ScrollView>
       
+      {/* Floating Action Button */}
       <FloatingActionButton 
-        icon={<Feather name="plus-circle" size={24} color="#FFFFFF" />}
-        onPress={() => router.push('/create-incident')}
+        icon={<Plus size={24} color="#FFFFFF" />}
+        onPress={() => router.push('/report/incident')}
         label="Report Incident"
+        color={colors.critical}
       />
     </SafeAreaView>
   );
@@ -191,6 +115,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 100, // Extra padding to account for FAB
   },
   header: {
     marginBottom: 16,
@@ -198,108 +123,5 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-  },
-  card: {
-    marginBottom: 24,
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  cardHeaderContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  viewAll: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  statusContent: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  statusItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  statusValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 4,
-  },
-  statusLabel: {
-    fontSize: 14,
-  },
-  statusDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#E0E0E0',
-  },
-  alertsList: {
-    gap: 16,
-  },
-  alertItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  alertIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  alertContent: {
-    flex: 1,
-  },
-  alertTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  alertLocation: {
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  alertTime: {
-    fontSize: 12,
-  },
-  emptyAlerts: {
-    padding: 16,
-    alignItems: 'center',
-  },
-  emptyText: {
-    fontSize: 16,
-  },
-  sectionHeader: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 24,
-  },
-  quickActionItem: {
-    width: '31%',
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-  },
-  quickActionIcon: {
-    marginBottom: 8,
-  },
-  quickActionTitle: {
-    fontSize: 14,
-    textAlign: 'center',
   },
 });

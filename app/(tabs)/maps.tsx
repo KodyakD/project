@@ -4,8 +4,8 @@ import { useColorScheme } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import FloorMap from '../../src/components/maps/FloorMap';
-import FloorSelector from '../../src/components/maps/FloorSelector';
+import { FloorMap } from '../../src/components/maps/FloorMap';
+import { FloorSelector } from '../../src/components/maps/FloorSelector';
 import WhereAmI from '../../src/components/maps/WhereAmI';
 import MapLayerToggle from '../../src/components/maps/MapLayerToggle';
 import { usePermissions } from '../../src/context/PermissionContext';
@@ -20,11 +20,16 @@ const MapsScreen = () => {
   
   const [currentFloor, setCurrentFloor] = useState<FloorType>('rdc');
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [currentFloorMapId, setCurrentFloorMapId] = useState<string>('main-building-rdc');
   const [layers, setLayers] = useState({
     incidents: true,
     risks: false,
     evacuation: false,
     resources: true,
+    userPosition: true,
+    userAccuracy: true,
+    userOrientation: true,
+    userPath: false,
   });
   
   useEffect(() => {
@@ -34,9 +39,16 @@ const MapsScreen = () => {
     }
   }, [permissions]);
   
-  const handleRoomPress = (roomId: string) => {
-    setSelectedRoomId(roomId);
-    // You could show details about the room here
+  // Update floor map ID when floor changes
+  useEffect(() => {
+    // This would normally fetch the correct map ID for the building and floor
+    // For now, we'll just use a simple mapping
+    setCurrentFloorMapId(`main-building-${currentFloor}`);
+  }, [currentFloor]);
+  
+  const handleSensorPress = (sensorId: string) => {
+    // Handle sensor press
+    console.log('Sensor pressed:', sensorId);
   };
   
   const handleLayerToggle = (layerName: keyof typeof layers) => {
@@ -62,18 +74,22 @@ const MapsScreen = () => {
       
       <View style={styles.mapContainer}>
         <FloorMap
-          floorId={currentFloor}
-          onRoomPress={handleRoomPress}
-          highlightedRoomId={selectedRoomId}
+          floorMapId={currentFloorMapId}
+          onSensorPress={handleSensorPress}
+          showUserPosition={layers.userPosition}
+          showUserAccuracy={layers.userAccuracy}
+          showUserOrientation={layers.userOrientation}
+          showUserPath={layers.userPath}
         />
       </View>
       
       <View style={styles.controlsOverlay}>
-        <FloorSelector 
-          currentFloor={currentFloor}
-          onFloorChange={setCurrentFloor}
-          style={styles.floorSelector}
-        />
+        <View style={styles.floorSelector}>
+          <FloorSelector 
+            currentFloor={currentFloor}
+            onFloorChange={setCurrentFloor}
+          />
+        </View>
         
         <View style={styles.bottomControls}>
           <WhereAmI onLocationFound={handleLocationFound} />
@@ -102,6 +118,30 @@ const MapsScreen = () => {
               label="Resources"
               isActive={layers.resources}
               onToggle={() => handleLayerToggle('resources')}
+            />
+            <MapLayerToggle
+              icon="my-location"
+              label="My Position"
+              isActive={layers.userPosition}
+              onToggle={() => handleLayerToggle('userPosition')}
+            />
+            <MapLayerToggle
+              icon="radar"
+              label="Accuracy"
+              isActive={layers.userAccuracy}
+              onToggle={() => handleLayerToggle('userAccuracy')}
+            />
+            <MapLayerToggle
+              icon="navigation"
+              label="Orientation"
+              isActive={layers.userOrientation}
+              onToggle={() => handleLayerToggle('userOrientation')}
+            />
+            <MapLayerToggle
+              icon="timeline"
+              label="Movement"
+              isActive={layers.userPath}
+              onToggle={() => handleLayerToggle('userPath')}
             />
           </View>
         </View>

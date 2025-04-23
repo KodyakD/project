@@ -1,172 +1,470 @@
 // filepath: mobile-app/project/app/login.tsx
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  useColorScheme,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { BarCodeScanner } from 'expo-barcode-scanner';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import Constants from 'expo-constants';
 
-import { Button } from '../src/components/ui/Button';
-import { TextInput } from '../src/components/ui/TextInput';
+// Use the default export from AuthContext which is the useAuth hook
+// In login.tsx, use this:
 import { useAuth } from '../src/context/AuthContext';
-import { Colors } from '../src/constants/Colors';
+import { COLORS, FONTS, SIZES } from '../src/constants';
+import Colors from '../src/constants/Colors';
 
+// Register web browser for SSO redirects
+WebBrowser.maybeCompleteAuthSession();
+
+// SSO Config (replace with actual values)
+const SSO_CONFIG = {
+  clientId: 'your-client-id',
+  discoveryUrl: 'https://university-sso.example.com/.well-known/openid-configuration',
+  scopes: ['openid', 'profile', 'email'],
+};
+
+// Make sure the default export is properly defined
 export default function LoginScreen() {
+  const { login, loginWithQrCode, authState, error, clearError } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  const router = useRouter();
+
+  // Form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [error, setError] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = Colors[colorScheme];
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loginMethod, setLoginMethod] = useState<'email' | 'qr' | 'sso'>('email');
+  
+  // QR scanning state
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [scanned, setScanned] = useState(false);
+  
+  // Success state for redirecting after login
+  const [loginSuccess, setLoginSuccess] = useState(false);
 
-  const handleLogin = async () => {
+  // Check if already logged in
+  useEffect(() => {
+    if (authState.isAuthenticated) {
+      router.replace('/(tabs)');
+    }
+  }, [authState.isAuthenticated, router]);
+
+  // Request QR code scanner permissions when QR mode is selected
+  useEffect(() => {
+    if (loginMethod === 'qr') {
+      (async () => {
+        const { status } = await BarCodeScanner.requestPermissionsAsync();
+        setHasPermission(status === 'granted');
+        
+        if (status !== 'granted') {
+          Alert.alert(
+            'Camera Permission Required',
+            'We need camera permission to scan QR codes for guest login.',
+            [{ text: 'OK', onPress: () => setLoginMethod('email') }]
+          );
+        }
+      })();
+    }
+  }, [loginMethod]);
+
+  // Handle login redirect after successful login
+  useEffect(() => {
+    if (loginSuccess) {
+      // Short delay to allow auth state to update
+      const redirectTimer = setTimeout(() => {
+        router.replace('/(tabs)');
+      }, 500);
+      
+      return () => clearTimeout(redirectTimer);
+    }
+  }, [loginSuccess, router]);
+
+  // Handle email/password login
+  const handleEmailLogin = async () => {
     if (!email || !password) {
-      setError('Email and password are required');
+      Alert.alert('Login Failed', 'Please enter both email and password');
       return;
     }
 
     try {
-      setLoading(true);
-      setError('');
-      await signIn(email, password);
-      // Navigation will be handled by the auth route guard
-    } catch (e: any) {
-      setError(e.message || 'Failed to login');
+      setIsSubmitting(true);
+      clearError();
+      
+      await login(email, password);
+      setLoginSuccess(true);
+    } catch (err) {
+      console.error('Login error:', err);
+      // Error is already handled by auth context
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleTogglePasswordVisibility = () => {
-    setIsPasswordVisible(!isPasswordVisible);
+  // Handle university SSO login
+  const handleSsoLogin = async () => {
+    try {
+      setIsSubmitting(true);
+      clearError();
+      
+      // Create auth request
+      const redirectUri = AuthSession.makeRedirectUri({
+        scheme: Constants.expoConfig?.scheme || 'com.firerescue',
+        path: 'sso-callback',
+      });
+      
+      const discovery = await AuthSession.fetchDiscoveryAsync(SSO_CONFIG.discoveryUrl);
+      
+      const authRequest = new AuthSession.AuthRequest({
+        clientId: SSO_CONFIG.clientId,
+        scopes: SSO_CONFIG.scopes,
+        redirectUri,
+      });
+      
+      // Start auth flow
+      const response = await authRequest.promptAsync(discovery);
+      
+      if (response.type === 'success') {
+        // Extract university ID and token from response
+        const universityId = response.params.sub || '';
+        const token = response.params.id_token || '';
+        
+        // Login with the token
+        await loginWithQrCode(`GUEST:UNIVERSITY:${Date.now()}:${token}`);
+        setLoginSuccess(true);
+      } else {
+        Alert.alert('SSO Login Cancelled', 'University login was cancelled or failed');
+      }
+    } catch (err) {
+      console.error('SSO login error:', err);
+      Alert.alert('SSO Login Failed', err instanceof Error ? err.message : 'Failed to login with university SSO');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const navigateToSignUp = () => {
-    router.push('/register');
+  // Handle QR code scan
+  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+    setScanned(true);
+    
+    try {
+      setIsSubmitting(true);
+      clearError();
+      
+      // Check if QR code has valid format
+      if (!data.startsWith('GUEST:')) {
+        Alert.alert('Invalid QR Code', 'This QR code is not valid for guest login');
+        return;
+      }
+      
+      await loginWithQrCode(data);
+      setLoginSuccess(true);
+    } catch (err) {
+      console.error('QR login error:', err);
+      Alert.alert('Login Failed', err instanceof Error ? err.message : 'Failed to login with QR code');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const navigateToGuestLogin = () => {
-    router.push('/guest-login');
-  };
-
-  const navigateToForgotPassword = () => {
-    router.push('/forgot-password');
+  // Render login method content based on selected method
+  const renderLoginContent = () => {
+    switch (loginMethod) {
+      case 'email':
+        return (
+          <View style={styles.formContainer}>
+            <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              placeholder="Enter your email"
+              placeholderTextColor={colors.textSecondary}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!isSubmitting}
+            />
+            
+            <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.textSecondary}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!isSubmitting}
+            />
+            
+            <View style={styles.rememberForgotRow}>
+              <TouchableOpacity
+                style={styles.rememberMeContainer}
+                onPress={() => setRememberMe(!rememberMe)}
+                disabled={isSubmitting}
+              >
+                <View style={[
+                  styles.checkbox,
+                  { borderColor: colors.primary },
+                  rememberMe && { backgroundColor: colors.primary }
+                ]}>
+                  {rememberMe && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                </View>
+                <Text style={[styles.rememberMeText, { color: colors.text }]}>Remember me</Text>
+              </TouchableOpacity>
+              
+              <Link href="/forgot-password" asChild>
+                <TouchableOpacity disabled={isSubmitting}>
+                  <Text style={[styles.forgotPasswordText, { color: colors.primary }]}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+            
+            <TouchableOpacity
+              style={[styles.loginButton, { backgroundColor: colors.primary }]}
+              onPress={handleEmailLogin}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.loginButtonText}>Login</Text>
+              )}
+            </TouchableOpacity>
+            
+            <View style={styles.registerContainer}>
+              <Text style={[styles.registerText, { color: colors.textSecondary }]}>
+                Don't have an account?
+              </Text>
+              <Link href="/register" asChild>
+                <TouchableOpacity disabled={isSubmitting}>
+                  <Text style={[styles.registerLink, { color: colors.primary }]}>
+                    Register
+                  </Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+        );
+        
+      case 'qr':
+        if (hasPermission === null) {
+          return (
+            <View style={styles.cameraContainer}>
+              <ActivityIndicator size="large" color={colors.primary} />
+              <Text style={[styles.cameraText, { color: colors.text }]}>
+                Requesting camera permission...
+              </Text>
+            </View>
+          );
+        }
+        
+        if (hasPermission === false) {
+          return (
+            <View style={styles.cameraContainer}>
+              <Ionicons name="camera-off" size={64} color={colors.error} />
+              <Text style={[styles.cameraText, { color: colors.error }]}>
+                Camera permission denied
+              </Text>
+              <Text style={[styles.cameraSubtext, { color: colors.textSecondary }]}>
+                Please enable camera access in your device settings to scan QR codes.
+              </Text>
+            </View>
+          );
+        }
+        
+        return (
+          <View style={styles.qrContainer}>
+            <View style={styles.scannerContainer}>
+              <BarCodeScanner
+                onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
+                style={StyleSheet.absoluteFillObject}
+              />
+              <View style={styles.scannerOverlay}>
+                <View style={styles.scannerTarget} />
+              </View>
+            </View>
+            
+            <Text style={[styles.qrInstructions, { color: colors.text }]}>
+              Scan the QR code provided by your institution for guest access
+            </Text>
+            
+            {scanned && (
+              <TouchableOpacity
+                style={[styles.rescanButton, { backgroundColor: colors.primary }]}
+                onPress={() => setScanned(false)}
+              >
+                <Text style={styles.rescanButtonText}>Scan Again</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+        
+      case 'sso':
+        return (
+          <View style={styles.ssoContainer}>
+            <Image
+              source={require('../assets/images/university-logo.png')}
+              style={styles.universityLogo}
+              resizeMode="contain"
+            />
+            
+            <Text style={[styles.ssoText, { color: colors.text }]}>
+              Log in with your university credentials
+            </Text>
+            
+            <Text style={[styles.ssoSubtext, { color: colors.textSecondary }]}>
+              You will be redirected to your university's login page
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.ssoButton, { backgroundColor: colors.primary }]}
+              onPress={handleSsoLogin}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <>
+                  <Ionicons name="school" size={20} color="#FFFFFF" />
+                  <Text style={styles.ssoButtonText}>Login with University SSO</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        );
+        
+      default:
+        return null;
+    }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      
       <KeyboardAvoidingView 
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
       >
-        <View style={styles.content}>
-          <View style={styles.logoContainer}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
             <Image 
               source={require('../assets/images/logo.png')} 
               style={styles.logo} 
               resizeMode="contain" 
             />
-            <Text style={[styles.appName, { color: colors.text }]}>
-              Fire Rescue Expert
-            </Text>
-            <Text style={[styles.tagline, { color: colors.textMuted }]}>
-              Safety & emergency management
+            <Text style={[styles.appName, { color: colors.text }]}>Fire Rescue</Text>
+            <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+              Emergency Response & Safety Management
             </Text>
           </View>
 
-          {error ? (
-            <View style={[styles.errorContainer, { backgroundColor: colorScheme === 'dark' ? colors.error + '20' : colors.error + '10' }]}>
-              <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-            </View>
-          ) : null}
-
-          <View style={styles.form}>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
-              <TextInput
-                value={email}
-                onChangeText={setEmail}
-                placeholder="Enter your email"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
+          {/* Login method tabs */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                loginMethod === 'email' && [styles.activeTab, { borderBottomColor: colors.primary }]
+              ]}
+              onPress={() => setLoginMethod('email')}
+              disabled={isSubmitting}
+            >
+              <Ionicons
+                name="mail"
+                size={20}
+                color={loginMethod === 'email' ? colors.primary : colors.textSecondary}
               />
-            </View>
-
-            <View style={styles.inputGroup}>
-              <View style={styles.labelRow}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
-                <TouchableOpacity onPress={navigateToForgotPassword}>
-                  <Text style={[styles.forgotPassword, { color: colors.primary }]}>
-                    Forgot password?
-                  </Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.passwordContainer}>
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  secureTextEntry={!isPasswordVisible}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={styles.passwordInput}
-                />
-                <TouchableOpacity
-                  style={styles.visibilityIcon}
-                  onPress={handleTogglePasswordVisibility}
-                >
-                  <Ionicons
-                    name={isPasswordVisible ? 'eye-off' : 'eye'}
-                    size={24}
-                    color={colors.textMuted}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <Button 
-              onPress={handleLogin} 
-              loading={loading}
-              fullWidth
-              style={styles.loginButton}
-            >
-              Sign In
-            </Button>
-
-            <View style={styles.dividerContainer}>
-              <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-              <Text style={[styles.dividerText, { color: colors.textMuted }]}>
-                OR
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: loginMethod === 'email' ? colors.primary : colors.textSecondary }
+                ]}
+              >
+                Email
               </Text>
-              <View style={[styles.divider, { backgroundColor: colors.divider }]} />
-            </View>
-
-            <Button
-              variant="outline"
-              onPress={navigateToGuestLogin}
-              fullWidth
-              leftIcon={<Ionicons name="qr-code-outline" size={20} color={colors.primary} />}
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                loginMethod === 'sso' && [styles.activeTab, { borderBottomColor: colors.primary }]
+              ]}
+              onPress={() => setLoginMethod('sso')}
+              disabled={isSubmitting}
             >
-              Continue as Guest
-            </Button>
-          </View>
-
-          <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.textMuted }]}>
-              Don't have an account?
-            </Text>
-            <TouchableOpacity onPress={navigateToSignUp}>
-              <Text style={[styles.signUpLink, { color: colors.primary }]}>
-                Sign Up
+              <Ionicons
+                name="school"
+                size={20}
+                color={loginMethod === 'sso' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: loginMethod === 'sso' ? colors.primary : colors.textSecondary }
+                ]}
+              >
+                University
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[
+                styles.tab,
+                loginMethod === 'qr' && [styles.activeTab, { borderBottomColor: colors.primary }]
+              ]}
+              onPress={() => setLoginMethod('qr')}
+              disabled={isSubmitting}
+            >
+              <Ionicons
+                name="qr-code"
+                size={20}
+                color={loginMethod === 'qr' ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: loginMethod === 'qr' ? colors.primary : colors.textSecondary }
+                ]}
+              >
+                Guest
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+          
+          {/* Display any auth errors */}
+          {error && (
+            <View style={[styles.errorContainer, { backgroundColor: `${colors.error}20` }]}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+              <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+            </View>
+          )}
+          
+          {/* Login content based on selected method */}
+          {renderLoginContent()}
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -176,99 +474,213 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoidingView: {
-    flex: 1,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: SIZES.padding,
+    paddingTop: SIZES.padding,
+    paddingBottom: SIZES.padding * 2,
   },
-  content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  logoContainer: {
+  header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginTop: SIZES.padding,
+    marginBottom: SIZES.padding * 1.5,
   },
   logo: {
     width: 80,
     height: 80,
-    marginBottom: 16,
+    marginBottom: SIZES.margin / 2,
   },
   appName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    ...FONTS.h2,
+    marginBottom: SIZES.margin / 4,
   },
   tagline: {
-    fontSize: 16,
+    ...FONTS.body3,
   },
-  form: {
-    marginBottom: 24,
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: SIZES.margin * 1.5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
   },
-  inputGroup: {
-    marginBottom: 20,
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
   },
-  inputLabel: {
-    fontSize: 16,
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  formContainer: {
+    width: '100%',
+  },
+  label: {
+    ...FONTS.body3,
     fontWeight: '500',
     marginBottom: 8,
   },
-  labelRow: {
+  input: {
+    height: SIZES.inputHeight,
+    borderWidth: 1,
+    borderRadius: SIZES.radius,
+    paddingHorizontal: 12,
+    marginBottom: SIZES.margin,
+    ...FONTS.body2,
+  },
+  rememberForgotRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: SIZES.margin * 1.5,
   },
-  forgotPassword: {
-    fontSize: 14,
-  },
-  passwordContainer: {
-    position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
-  },
-  visibilityIcon: {
-    position: 'absolute',
-    right: 12,
-    top: 12,
-  },
-  loginButton: {
-    marginTop: 12,
-  },
-  dividerContainer: {
+  rememberMeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
   },
-  divider: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  footer: {
-    flexDirection: 'row',
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderRadius: 4,
+    marginRight: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  footerText: {
-    fontSize: 16,
+  rememberMeText: {
+    ...FONTS.body3,
   },
-  signUpLink: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 4,
+  forgotPasswordText: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  loginButton: {
+    height: SIZES.buttonHeight,
+    borderRadius: SIZES.radius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.margin * 1.5,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    ...FONTS.button,
+  },
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  registerText: {
+    ...FONTS.body3,
+  },
+  registerLink: {
+    ...FONTS.body3,
+    fontWeight: '500',
   },
   errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    borderRadius: SIZES.radius,
+    marginBottom: SIZES.margin,
   },
   errorText: {
-    fontSize: 14,
+    ...FONTS.body3,
+    marginLeft: 8,
+    flex: 1,
+  },
+  // QR code scanner styles
+  qrContainer: {
+    alignItems: 'center',
+  },
+  scannerContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    marginBottom: SIZES.margin * 1.5,
+    borderRadius: SIZES.radius,
+    overflow: 'hidden',
+  },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scannerTarget: {
+    width: 200,
+    height: 200,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+  },
+  qrInstructions: {
+    ...FONTS.body3,
+    textAlign: 'center',
+    marginBottom: SIZES.margin * 1.5,
+    paddingHorizontal: SIZES.padding,
+  },
+  rescanButton: {
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: 8,
+    borderRadius: SIZES.radius,
+  },
+  rescanButtonText: {
+    ...FONTS.buttonSmall,
+    color: '#FFFFFF',
+  },
+  cameraContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.padding,
+  },
+  cameraText: {
+    ...FONTS.body2,
+    marginTop: SIZES.margin,
+    marginBottom: SIZES.margin / 2,
+    textAlign: 'center',
+  },
+  cameraSubtext: {
+    ...FONTS.body3,
+    textAlign: 'center',
+  },
+  // SSO styles
+  ssoContainer: {
+    alignItems: 'center',
+    padding: SIZES.padding,
+  },
+  universityLogo: {
+    width: 120,
+    height: 120,
+    marginBottom: SIZES.margin,
+  },
+  ssoText: {
+    ...FONTS.body2,
     fontWeight: '500',
+    marginBottom: SIZES.margin / 2,
+  },
+  ssoSubtext: {
+    ...FONTS.body3,
+    textAlign: 'center',
+    marginBottom: SIZES.margin * 1.5,
+  },
+  ssoButton: {
+    flexDirection: 'row',
+    height: SIZES.buttonHeight,
+    paddingHorizontal: SIZES.padding,
+    borderRadius: SIZES.radius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ssoButtonText: {
+    color: '#FFFFFF',
+    ...FONTS.button,
   },
 });

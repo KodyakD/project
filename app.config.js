@@ -2,23 +2,33 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = ({ config }) => {
-  // Default to development environment
+  // Load environment variables
   const env = process.env.APP_ENV || 'development';
   const envPath = path.resolve(__dirname, `.env.${env}`);
   
-  // Load environment variables manually instead of requiring the file
   const envConfig = {};
   if (fs.existsSync(envPath)) {
-    const envFile = fs.readFileSync(envPath, 'utf8');
-    envFile.split('\n').forEach(line => {
-      // Skip comments and empty lines
-      if (line.trim() && !line.startsWith('//')) {
-        const [key, value] = line.split('=');
-        if (key && value) {
-          envConfig[key.trim()] = value.trim();
+    try {
+      // Read the file as a string
+      const envFile = fs.readFileSync(envPath, 'utf8');
+      
+      // Process each line, filtering out comments and empty lines
+      envFile.split('\n').forEach(line => {
+        const trimmedLine = line.trim();
+        if (trimmedLine && !trimmedLine.startsWith('#')) {
+          const [key, value] = trimmedLine.split('=');
+          if (key && value) {
+            envConfig[key.trim()] = value.trim();
+          }
         }
-      }
-    });
+      });
+      
+      console.log('Loaded environment variables:', Object.keys(envConfig));
+    } catch (error) {
+      console.error('Error loading environment variables:', error);
+    }
+  } else {
+    console.log(`Environment file not found: ${envPath}`);
   }
   
   return {
@@ -37,39 +47,50 @@ module.exports = ({ config }) => {
     assetBundlePatterns: ["**/*"],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.yourcompany.firerescueexpert"
+      bundleIdentifier: "com.firerescue.expertapp",
+      infoPlist: {
+        NSCameraUsageDescription: "This app uses the camera to scan barcodes for guest login and to capture images for incident reports.",
+        NSLocationWhenInUseUsageDescription: "This app uses your location to show your position on emergency maps and to geo-tag incident reports.",
+        NSPhotoLibraryUsageDescription: "This app accesses your photo library to upload images for incident documentation."
+      }
     },
     android: {
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#e53e3e"
       },
-      package: "com.yourcompany.firerescueexpert"
+      package: "com.firerescue.expertapp",
+      permissions: [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     web: {
       favicon: "./assets/favicon.png"
     },
     extra: {
-      firebaseApiKey: envConfig.FIREBASE_API_KEY,
-      firebaseAuthDomain: envConfig.FIREBASE_AUTH_DOMAIN,
-      firebaseProjectId: envConfig.FIREBASE_PROJECT_ID,
-      firebaseStorageBucket: envConfig.FIREBASE_STORAGE_BUCKET,
-      firebaseMessagingSenderId: envConfig.FIREBASE_MESSAGING_SENDER_ID,
-      firebaseAppId: envConfig.FIREBASE_APP_ID,
+      ...envConfig,
       eas: {
-        projectId: process.env.EAS_PROJECT_ID,
+        projectId: process.env.EAS_PROJECT_ID || "your-project-id",
       },
+      // Workaround for "Cannot find native module" errors in Expo Go
+      skipNativeModulesInExpoGo: true
     },
+    // Simplified plugins section in app.config.js
     plugins: [
       "expo-router",
-      [
-        "expo-build-properties",
-        {
-          android: {
-            usesCleartextTraffic: true,
-          },
-        },
-      ],
+      "expo-barcode-scanner",
+      "expo-location",
+      "expo-media-library",
+      "expo-image-picker",
+      "expo-device"
     ],
+    experiments: {
+      // Enable these if needed for newer features
+      tsconfigPaths: true,
+      typedRoutes: true
+    }
   };
 };

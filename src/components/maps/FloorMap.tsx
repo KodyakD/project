@@ -1,127 +1,230 @@
-import React from 'react';
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import { SvgUri } from 'react-native-svg';
-import { PanGestureHandler, PinchGestureHandler } from 'react-native-gesture-handler';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { useMapCache } from '@/hooks/useMapCache';
-import { useMapGestures } from '@/hooks/useMapGestures';
+import React, { useEffect, useState } from 'react';
+import { View, StyleSheet, ActivityIndicator, Text, ScrollView } from 'react-native';
+import { PanGestureHandler, PinchGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, { 
+  useAnimatedGestureHandler, 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withTiming 
+} from 'react-native-reanimated';
+import { SvgXml } from 'react-native-svg';
+import { FloorMap as FloorMapType, fetchFloorMapById, fetchFloorMapSensorPoints } from '@/services/floorMapService';
+import { SensorOverlay } from './SensorOverlay';
+import UserPositionLayer from './UserPositionLayer';
+import { FloorMapSensorPoint } from '@/services/floorMapService';
+import { useIotDeviceData } from '@/hooks/useIotDeviceData';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { FloorType } from '@/types/map.types';
-import RoomHighlight from './RoomHighlight';
-import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
 
 interface FloorMapProps {
-  floorId: FloorType;
-  showRooms?: boolean;
-  initialZoom?: number;
-  onRoomPress?: (roomId: string) => void;
-  highlightedRoomId?: string | null;
+  floorMapId: string;
+  onSensorPress?: (sensorId: string) => void;
+  showUserPosition?: boolean;
+  showUserAccuracy?: boolean;
+  showUserOrientation?: boolean;
+  showUserPath?: boolean;
 }
 
-const FloorMap: React.FC<FloorMapProps> = ({
-  floorId,
-  showRooms = true,
-  initialZoom = 1,
-  onRoomPress,
-  highlightedRoomId = null,
+export const FloorMap: React.FC<FloorMapProps> = ({
+  floorMapId,
+  onSensorPress,
+  showUserPosition = true,
+  showUserAccuracy = true,
+  showUserOrientation = true,
+  showUserPath = false
 }) => {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
-  
-  const { mapUri, isLoading, error } = useMapCache(floorId);
-  const { scale, translateX, translateY, gestureHandlers } = useMapGestures(initialZoom);
-  
-  // Animated styles for pan and zoom
-  const animatedStyles = useAnimatedStyle(() => {
+  const [floorMap, setFloorMap] = useState<FloorMapType | null>(null);
+  const [sensors, setSensors] = useState<FloorMapSensorPoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { getDeviceDataBySensorId } = useIotDeviceData();
+
+  // Animation values
+  const scale = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const lastScale = useSharedValue(1);
+  const lastTranslateX = useSharedValue(0);
+  const lastTranslateY = useSharedValue(0);
+
+  useEffect(() => {
+    const loadFloorMap = async () => {
+      try {
+        setLoading(true);
+        const mapData = await fetchFloorMapById(floorMapId);
+        if (mapData) {
+          setFloorMap(mapData);
+          const sensorData = await fetchFloorMapSensorPoints(floorMapId);
+          setSensors(sensorData);
+        } else {
+          setError('Floor map not found');
+        }
+      } catch (err) {
+        console.error('Error loading floor map:', err);
+        setError('Failed to load floor map');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadFloorMap();
+  }, [floorMapId]);
+
+  const pinchHandler = useAnimatedGestureHandler({
+    onStart: (_, ctx: any) => {
+      ctx.startScale = scale.value;
+    },
+    onActive: (event, ctx) => {
+      scale.value = ctx.startScale * event.scale;
+    },
+    onEnd: () => {
+      lastScale.value = scale.value;
+    },
+  });
+
+  const panHandler = useAnimatedGestureHandler({
+    onStart: (_, ctx: any) => {
+      ctx.startX = translateX.value;
+      ctx.startY = translateY.value;
+    },
+    onActive: (event, ctx) => {
+      translateX.value = ctx.startX + event.translationX;
+      translateY.value = ctx.startY + event.translationY;
+    },
+    onEnd: () => {
+      lastTranslateX.value = translateX.value;
+      lastTranslateY.value = translateY.value;
+    },
+  });
+
+  const animatedStyle = useAnimatedStyle(() => {
     return {
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { scale: scale.value }
-      ]
+        { scale: scale.value },
+      ],
     };
   });
-  
-  if (isLoading) {
+
+  const resetView = () => {
+    scale.value = withTiming(1);
+    translateX.value = withTiming(0);
+    translateY.value = withTiming(0);
+    lastScale.value = 1;
+    lastTranslateX.value = 0;
+    lastTranslateY.value = 0;
+  };
+
+  if (loading) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: colors.text }]}>Loading map...</Text>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#0000ff" />
+        <Text style={styles.loadingText}>Loading floor map...</Text>
       </View>
     );
   }
-  
-  if (error || !mapUri) {
+
+  if (error || !floorMap) {
     return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text style={[styles.errorText, { color: colors.error }]}>
-          Could not load map. Please try again.
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error || 'Error loading map'}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <PinchGestureHandler
+        onGestureEvent={pinchHandler}
+        onHandlerStateChange={({ nativeEvent }) => {
+          if (nativeEvent.state === State.END) {
+            lastScale.value = scale.value;
+          }
+        }}
+      >
+        <Animated.View style={styles.mapContainer}>
+          <PanGestureHandler
+            onGestureEvent={panHandler}
+            onHandlerStateChange={({ nativeEvent }) => {
+              if (nativeEvent.state === State.END) {
+                lastTranslateX.value = translateX.value;
+                lastTranslateY.value = translateY.value;
+              }
+            }}
+          >
+            <Animated.View style={[styles.svgContainer, animatedStyle]}>
+              <SvgXml 
+                xml={floorMap.svgContent} 
+                width={floorMap.width} 
+                height={floorMap.height} 
+              />
+              <SensorOverlay 
+                sensors={sensors} 
+                getDeviceData={getDeviceDataBySensorId}
+                onSensorPress={onSensorPress}
+                scale={scale.value}
+              />
+            </Animated.View>
+          </PanGestureHandler>
+          
+          {/* User position layer - positioned outside the pan/zoom container so it's always visible */}
+          {showUserPosition && (
+            <UserPositionLayer
+              floor={floorMap.floor as FloorType}
+              width={floorMap.width}
+              height={floorMap.height}
+              zoomLevel={scale.value}
+              showAccuracy={showUserAccuracy}
+              showOrientation={showUserOrientation}
+              showHistoricalPath={showUserPath}
+            />
+          )}
+        </Animated.View>
+      </PinchGestureHandler>
+      
+      <View style={styles.controls}>
+        <Text style={styles.resetButton} onPress={resetView}>
+          Reset View
         </Text>
       </View>
-    );
-  }
-  
-  return (
-    <View style={styles.container}>
-      <PanGestureHandler 
-        onGestureEvent={gestureHandlers.panGestureEvent}
-        onHandlerStateChange={gestureHandlers.panStateChange}
-      >
-        <Animated.View style={styles.fullSize}>
-          <PinchGestureHandler
-            onGestureEvent={gestureHandlers.pinchGestureEvent}
-            onHandlerStateChange={gestureHandlers.pinchStateChange}
-          >
-            <Animated.View style={[styles.mapContainer, animatedStyles]}>
-              <SvgUri
-                width="100%"
-                height="100%"
-                uri={mapUri}
-              />
-              
-              {showRooms && (
-                <RoomHighlight
-                  floorId={floorId}
-                  highlightedRoomId={highlightedRoomId}
-                  onRoomPress={onRoomPress}
-                />
-              )}
-            </Animated.View>
-          </PinchGestureHandler>
-        </Animated.View>
-      </PanGestureHandler>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'transparent',
-    overflow: 'hidden',
-  },
-  fullSize: {
-    width: '100%',
-    height: '100%',
-  },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
   mapContainer: {
-    width: '100%',
-    height: '100%',
-    position: 'relative',
+    flex: 1,
+    overflow: 'hidden',
+  },
+  svgContainer: {
+    position: 'absolute',
   },
   loadingText: {
-    marginTop: 12,
-    fontSize: 16,
-  },
-  errorText: {
+    marginTop: 10,
     fontSize: 16,
     textAlign: 'center',
-    marginHorizontal: 20,
-  }
+  },
+  errorText: {
+    color: 'red',
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  controls: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 8,
+    padding: 10,
+  },
+  resetButton: {
+    fontSize: 16,
+    color: '#0066cc',
+    fontWeight: 'bold',
+  },
 });
-
-export default FloorMap;

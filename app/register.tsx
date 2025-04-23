@@ -1,277 +1,613 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, KeyboardAvoidingView, Platform, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  useColorScheme,
+} from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as Yup from 'yup';
 
-import { Button } from '../src/components/ui/Button';
-import { TextInput } from '../src/components/ui/TextInput';
-import { useAuth } from '../src/context/AuthContext';
-import { Colors } from '../src/constants/Colors';
+import { useAuth } from '../src/contexts/AuthContext';
+import { COLORS, FONTS, SIZES } from '../src/constants';
+import Colors from '../src/constants/Colors';
+import { USER_ROLES } from '../src/constants/roles';
 
-export default function RegisterScreen() {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-  const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
-  const colorScheme = useColorScheme() || 'light';
-  const colors = Colors[colorScheme];
+// Validation schema
+const registrationSchema = Yup.object().shape({
+  firstName: Yup.string().required('First name is required'),
+  lastName: Yup.string().required('Last name is required'),
+  email: Yup.string().email('Invalid email').required('Email is required'),
+  password: Yup.string()
+    .min(8, 'Password must be at least 8 characters')
+    .matches(/[a-z]/, 'Password must contain at least one lowercase letter')
+    .matches(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .matches(/[0-9]/, 'Password must contain at least one number')
+    .required('Password is required'),
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords must match')
+    .required('Confirm password is required'),
+  role: Yup.string().oneOf(
+    [USER_ROLES.FIRE_FIGHTER, USER_ROLES.TECHNICIAN, USER_ROLES.SUPERVISOR],
+    'Please select a valid role'
+  ).required('Role is required'),
+});
 
-  const handleRegister = async () => {
-    // Basic validation
-    if (!name || !email || !password || !confirmPassword) {
-      setError('All fields are required');
-      return;
+const RegisterScreen = () => {
+  const { register, error, clearError } = useAuth();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
+  const router = useRouter();
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+    role: USER_ROLES.FIRE_FIGHTER,
+  });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Clear error when component unmounts
+  useEffect(() => {
+    return () => {
+      clearError();
+    };
+  }, [clearError]);
+
+  // Handle input changes
+  const handleChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+
+    // Clear field error when user starts typing again
+    if (formErrors[field]) {
+      setFormErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[field];
+        return updated;
+      });
     }
+  };
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters');
-      return;
-    }
-
+  // Validate a single field
+  const validateField = async (field: string) => {
     try {
-      setLoading(true);
-      setError('');
-      await signUp(email, password, name);
-      // Navigation will be handled by the auth route guard
-    } catch (e: any) {
-      setError(e.message || 'Failed to register');
-    } finally {
-      setLoading(false);
+      await registrationSchema.validateAt(field, formData);
+      setFormErrors((prev) => {
+        const updated = { ...prev };
+        delete updated[field];
+        return updated;
+      });
+      return true;
+    } catch (error) {
+      if (error instanceof Yup.ValidationError) {
+        setFormErrors((prev) => ({
+          ...prev,
+          [field]: error.message,
+        }));
+        return false;
+      }
+      return true;
     }
   };
 
-  const handleTogglePasswordVisibility = () => {
-    setIsPasswordVisible(!isPasswordVisible);
-  };
+  // Handle form submission
+  const handleSubmit = async () => {
+    try {
+      setIsSubmitting(true);
+      clearError();
 
-  const handleToggleConfirmPasswordVisibility = () => {
-    setIsConfirmPasswordVisible(!isConfirmPasswordVisible);
-  };
+      // Validate all fields
+      await registrationSchema.validate(formData, { abortEarly: false });
 
-  const navigateToLogin = () => {
-    router.push('/login');
+      // Register user
+      await register(
+        formData.email,
+        formData.password,
+        {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          role: formData.role,
+        }
+      );
+
+      // Navigate to success page
+      router.replace('/registration-success');
+    } catch (error) {
+      if (error instanceof Yup.ValidationError) {
+        // Handle validation errors
+        const errors: Record<string, string> = {};
+        error.inner.forEach((err) => {
+          if (err.path) {
+            errors[err.path] = err.message;
+          }
+        });
+        setFormErrors(errors);
+      } else {
+        // Error is already handled by auth context
+        console.error('Registration error:', error);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+      
       <KeyboardAvoidingView 
+        style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardAvoidingView}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <View style={styles.content}>
-            <View style={styles.logoContainer}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.header}>
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+              disabled={isSubmitting}
+            >
+              <Ionicons 
+                name="arrow-back" 
+                size={24} 
+                color={colors.text}
+              />
+            </TouchableOpacity>
+            
               <Image 
                 source={require('../assets/images/logo.png')} 
                 style={styles.logo} 
                 resizeMode="contain" 
               />
-              <Text style={[styles.appName, { color: colors.text }]}>
-                Fire Rescue Expert
-              </Text>
-              <Text style={[styles.tagline, { color: colors.textMuted }]}>
-                Create your account
+            
+            <Text style={[styles.title, { color: colors.text }]}>Create Account</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
+              Join the Fire Rescue team by registering below
               </Text>
             </View>
 
-            {error ? (
-              <View style={[styles.errorContainer, { backgroundColor: colorScheme === 'dark' ? colors.error + '20' : colors.error + '10' }]}>
+          {/* Display any auth errors */}
+          {error && (
+            <View style={[styles.errorContainer, { backgroundColor: `${colors.error}20` }]}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
                 <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
               </View>
-            ) : null}
-
-            <View style={styles.form}>
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Full Name</Text>
+          )}
+          
+          <View style={styles.formContainer}>
+            {/* First Name & Last Name Row */}
+            <View style={styles.nameRow}>
+              <View style={styles.nameField}>
+                <Text style={[styles.label, { color: colors.text }]}>First Name</Text>
                 <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder="Enter your full name"
-                  autoCapitalize="words"
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.card, color: colors.text, borderColor: formErrors.firstName ? colors.error : colors.border },
+                  ]}
+                  placeholder="First Name"
+                  placeholderTextColor={colors.textSecondary}
+                  value={formData.firstName}
+                  onChangeText={(text) => handleChange('firstName', text)}
+                  onBlur={() => validateField('firstName')}
+                  editable={!isSubmitting}
                 />
+                {formErrors.firstName && (
+                  <Text style={[styles.fieldError, { color: colors.error }]}>
+                    {formErrors.firstName}
+                  </Text>
+                )}
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Email</Text>
+              <View style={styles.nameField}>
+                <Text style={[styles.label, { color: colors.text }]}>Last Name</Text>
                 <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
+                  style={[
+                    styles.input,
+                    { backgroundColor: colors.card, color: colors.text, borderColor: formErrors.lastName ? colors.error : colors.border },
+                  ]}
+                  placeholder="Last Name"
+                  placeholderTextColor={colors.textSecondary}
+                  value={formData.lastName}
+                  onChangeText={(text) => handleChange('lastName', text)}
+                  onBlur={() => validateField('lastName')}
+                  editable={!isSubmitting}
                 />
+                {formErrors.lastName && (
+                  <Text style={[styles.fieldError, { color: colors.error }]}>
+                    {formErrors.lastName}
+                  </Text>
+                )}
               </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Password</Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Create a password"
-                    secureTextEntry={!isPasswordVisible}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.passwordInput}
-                  />
-                  <TouchableOpacity
-                    style={styles.visibilityIcon}
-                    onPress={handleTogglePasswordVisibility}
-                  >
-                    <Ionicons
-                      name={isPasswordVisible ? 'eye-off' : 'eye'}
-                      size={24}
-                      color={colors.textMuted}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.inputGroup}>
-                <Text style={[styles.inputLabel, { color: colors.text }]}>Confirm Password</Text>
-                <View style={styles.passwordContainer}>
-                  <TextInput
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    placeholder="Confirm your password"
-                    secureTextEntry={!isConfirmPasswordVisible}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.passwordInput}
-                  />
-                  <TouchableOpacity
-                    style={styles.visibilityIcon}
-                    onPress={handleToggleConfirmPasswordVisibility}
-                  >
-                    <Ionicons
-                      name={isConfirmPasswordVisible ? 'eye-off' : 'eye'}
-                      size={24}
-                      color={colors.textMuted}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <Button 
-                onPress={handleRegister} 
-                loading={loading}
-                fullWidth
-                style={styles.registerButton}
-              >
-                Create Account
-              </Button>
             </View>
-
-            <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: colors.textMuted }]}>
-                Already have an account?
+            
+            {/* Email */}
+            <Text style={[styles.label, { color: colors.text }]}>Email</Text>
+            <TextInput
+              style={[
+                styles.input,
+                { backgroundColor: colors.card, color: colors.text, borderColor: formErrors.email ? colors.error : colors.border },
+              ]}
+              placeholder="Enter your email"
+              placeholderTextColor={colors.textSecondary}
+              value={formData.email}
+              onChangeText={(text) => handleChange('email', text)}
+              onBlur={() => validateField('email')}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!isSubmitting}
+            />
+            {formErrors.email && (
+              <Text style={[styles.fieldError, { color: colors.error }]}>
+                {formErrors.email}
               </Text>
-              <TouchableOpacity onPress={navigateToLogin}>
-                <Text style={[styles.loginLink, { color: colors.primary }]}>
-                  Sign In
+            )}
+            
+            {/* Password */}
+            <Text style={[styles.label, { color: colors.text }]}>Password</Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.card, color: colors.text, borderColor: formErrors.password ? colors.error : colors.border },
+                ]}
+                    placeholder="Create a password"
+                placeholderTextColor={colors.textSecondary}
+                value={formData.password}
+                onChangeText={(text) => handleChange('password', text)}
+                onBlur={() => validateField('password')}
+                secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                editable={!isSubmitting}
+                  />
+                  <TouchableOpacity
+                    style={styles.visibilityIcon}
+                onPress={() => setShowPassword(!showPassword)}
+                disabled={isSubmitting}
+                  >
+                    <Ionicons
+                  name={showPassword ? 'eye-off' : 'eye'}
+                      size={24}
+                  color={colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+            {formErrors.password && (
+              <Text style={[styles.fieldError, { color: colors.error }]}>
+                {formErrors.password}
+              </Text>
+            )}
+            
+            {/* Confirm Password */}
+            <Text style={[styles.label, { color: colors.text }]}>Confirm Password</Text>
+                <View style={styles.passwordContainer}>
+                  <TextInput
+                style={[
+                  styles.input,
+                  { backgroundColor: colors.card, color: colors.text, borderColor: formErrors.confirmPassword ? colors.error : colors.border },
+                ]}
+                    placeholder="Confirm your password"
+                placeholderTextColor={colors.textSecondary}
+                value={formData.confirmPassword}
+                onChangeText={(text) => handleChange('confirmPassword', text)}
+                onBlur={() => validateField('confirmPassword')}
+                secureTextEntry={!showConfirmPassword}
+                    autoCapitalize="none"
+                editable={!isSubmitting}
+                  />
+                  <TouchableOpacity
+                    style={styles.visibilityIcon}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                disabled={isSubmitting}
+                  >
+                    <Ionicons
+                  name={showConfirmPassword ? 'eye-off' : 'eye'}
+                      size={24}
+                  color={colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+            {formErrors.confirmPassword && (
+              <Text style={[styles.fieldError, { color: colors.error }]}>
+                {formErrors.confirmPassword}
+              </Text>
+            )}
+            
+            {/* Role Selection */}
+            <Text style={[styles.label, { color: colors.text }]}>Select Your Role</Text>
+            <View style={styles.roleContainer}>
+              <TouchableOpacity
+                style={[
+                  styles.roleOption,
+                  formData.role === USER_ROLES.FIRE_FIGHTER && styles.selectedRole,
+                  { 
+                    backgroundColor: formData.role === USER_ROLES.FIRE_FIGHTER ? `${colors.primary}20` : colors.card,
+                    borderColor: formData.role === USER_ROLES.FIRE_FIGHTER ? colors.primary : colors.border 
+                  }
+                ]}
+                onPress={() => handleChange('role', USER_ROLES.FIRE_FIGHTER)}
+                disabled={isSubmitting}
+              >
+                <Ionicons 
+                  name="flame" 
+                  size={24} 
+                  color={formData.role === USER_ROLES.FIRE_FIGHTER ? colors.primary : colors.textSecondary} 
+                />
+                <Text style={[
+                  styles.roleText,
+                  { color: formData.role === USER_ROLES.FIRE_FIGHTER ? colors.primary : colors.text }
+                ]}>
+                  Fire Fighter
                 </Text>
               </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.roleOption,
+                  formData.role === USER_ROLES.TECHNICIAN && styles.selectedRole,
+                  { 
+                    backgroundColor: formData.role === USER_ROLES.TECHNICIAN ? `${colors.primary}20` : colors.card,
+                    borderColor: formData.role === USER_ROLES.TECHNICIAN ? colors.primary : colors.border 
+                  }
+                ]}
+                onPress={() => handleChange('role', USER_ROLES.TECHNICIAN)}
+                disabled={isSubmitting}
+              >
+                <Ionicons 
+                  name="build" 
+                  size={24} 
+                  color={formData.role === USER_ROLES.TECHNICIAN ? colors.primary : colors.textSecondary} 
+                />
+                <Text style={[
+                  styles.roleText,
+                  { color: formData.role === USER_ROLES.TECHNICIAN ? colors.primary : colors.text }
+                ]}>
+                  Technician
+                </Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[
+                  styles.roleOption,
+                  formData.role === USER_ROLES.SUPERVISOR && styles.selectedRole,
+                  { 
+                    backgroundColor: formData.role === USER_ROLES.SUPERVISOR ? `${colors.primary}20` : colors.card,
+                    borderColor: formData.role === USER_ROLES.SUPERVISOR ? colors.primary : colors.border 
+                  }
+                ]}
+                onPress={() => handleChange('role', USER_ROLES.SUPERVISOR)}
+                disabled={isSubmitting}
+              >
+                <Ionicons 
+                  name="shield" 
+                  size={24} 
+                  color={formData.role === USER_ROLES.SUPERVISOR ? colors.primary : colors.textSecondary} 
+                />
+                <Text style={[
+                  styles.roleText,
+                  { color: formData.role === USER_ROLES.SUPERVISOR ? colors.primary : colors.text }
+                ]}>
+                  Supervisor
+                </Text>
+              </TouchableOpacity>
+            </View>
+            {formErrors.role && (
+              <Text style={[styles.fieldError, { color: colors.error }]}>
+                {formErrors.role}
+              </Text>
+            )}
+            
+            {/* Terms and Conditions */}
+            <View style={styles.termsContainer}>
+              <Text style={[styles.termsText, { color: colors.textSecondary }]}>
+                By registering, you agree to our{' '}
+                <Text 
+                  style={[styles.termsLink, { color: colors.primary }]}
+                  onPress={() => router.push('/terms')}
+                >
+                  Terms & Conditions
+                </Text>
+                {' '}and{' '}
+                <Text 
+                  style={[styles.termsLink, { color: colors.primary }]}
+                  onPress={() => router.push('/privacy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.registerButton, { backgroundColor: colors.primary }]}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.registerButtonText}>Create Account</Text>
+              )}
+            </TouchableOpacity>
+            
+            <View style={styles.loginContainer}>
+              <Text style={[styles.loginText, { color: colors.textSecondary }]}>
+                Already have an account?
+              </Text>
+              <Link href="/login" asChild>
+                <TouchableOpacity disabled={isSubmitting}>
+                <Text style={[styles.loginLink, { color: colors.primary }]}>
+                    Log In
+                </Text>
+              </TouchableOpacity>
+              </Link>
             </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: SIZES.padding,
+    paddingTop: SIZES.padding,
+    paddingBottom: SIZES.padding * 2,
   },
-  content: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
-  },
-  logoContainer: {
+  header: {
     alignItems: 'center',
-    marginVertical: 40,
+    marginTop: SIZES.padding / 2,
+    marginBottom: SIZES.padding,
+    position: 'relative',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    padding: 8,
+    zIndex: 1,
   },
   logo: {
-    width: 70,
-    height: 70,
-    marginBottom: 16,
+    width: 60,
+    height: 60,
+    marginBottom: SIZES.margin / 2,
   },
-  appName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 8,
+  title: {
+    ...FONTS.h2,
+    marginBottom: SIZES.margin / 4,
   },
-  tagline: {
-    fontSize: 16,
+  subtitle: {
+    ...FONTS.body3,
+    textAlign: 'center',
   },
-  form: {
-    marginBottom: 24,
+  formContainer: {
+    width: '100%',
   },
-  inputGroup: {
-    marginBottom: 20,
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  inputLabel: {
-    fontSize: 16,
+  nameField: {
+    width: '48%',
+  },
+  label: {
+    ...FONTS.body3,
     fontWeight: '500',
     marginBottom: 8,
+    marginTop: 16,
+  },
+  input: {
+    height: SIZES.inputHeight,
+    borderWidth: 1,
+    borderRadius: SIZES.radius,
+    paddingHorizontal: 12,
+    ...FONTS.body2,
+  },
+  fieldError: {
+    ...FONTS.caption,
+    marginTop: 4,
   },
   passwordContainer: {
     position: 'relative',
-  },
-  passwordInput: {
-    paddingRight: 50,
   },
   visibilityIcon: {
     position: 'absolute',
     right: 12,
     top: 12,
   },
-  registerButton: {
-    marginTop: 12,
-  },
-  footer: {
+  roleContainer: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 16,
+    justifyContent: 'space-between',
+    marginTop: 10,
   },
-  footerText: {
-    fontSize: 16,
-  },
-  loginLink: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  errorContainer: {
+  roleOption: {
+    width: '32%',
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 16,
+    borderRadius: SIZES.radius,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
-  errorText: {
-    fontSize: 14,
+  selectedRole: {
+    borderWidth: 2,
+  },
+  roleText: {
+    ...FONTS.body3,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  termsContainer: {
+    marginTop: SIZES.margin * 1.5,
+    marginBottom: SIZES.margin,
+  },
+  termsText: {
+    ...FONTS.caption,
+    textAlign: 'center',
+  },
+  termsLink: {
     fontWeight: '500',
   },
+  registerButton: {
+    height: SIZES.buttonHeight,
+    borderRadius: SIZES.radius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.margin * 1.5,
+  },
+  registerButtonText: {
+    color: '#FFFFFF',
+    ...FONTS.button,
+  },
+  loginContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  loginText: {
+    ...FONTS.body3,
+  },
+  loginLink: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: SIZES.radius,
+    marginBottom: SIZES.margin,
+  },
+  errorText: {
+    ...FONTS.body3,
+    marginLeft: 8,
+    flex: 1,
+  },
 });
+
+export default RegisterScreen;
