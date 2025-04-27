@@ -8,11 +8,11 @@ import Animated, {
   withTiming 
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
-import { FloorMap as FloorMapType, fetchFloorMapById, fetchFloorMapSensorPoints } from '@/services/floorMapService';
+import { FloorMap as FloorMapType, fetchFloorMapById, fetchFloorMapSensorPoints } from '../../services/floorMapService';
 import { SensorOverlay } from './SensorOverlay';
 import UserPositionLayer from './UserPositionLayer';
-import { FloorMapSensorPoint } from '@/services/floorMapService';
-import { useIotDeviceData } from '@/hooks/useIotDeviceData';
+import { FloorMapSensorPoint } from '../../services/floorMapService';
+import { useIotDeviceData } from '../../hooks/useIotDeviceData';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FloorType } from '@/types/map.types';
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, ViewStyle, useColorScheme } from 'react-native';
 import { AlertCircle } from '@expo/vector-icons/Feather';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 
 interface ErrorDisplayProps {
   message: string;

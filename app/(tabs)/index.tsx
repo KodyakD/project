@@ -6,14 +6,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Plus from '@expo/vector-icons/Feather';
 import { Feather } from '@expo/vector-icons';
-import Colors from '@/constants/Colors';
-import { Loading } from '@/components/ui/Loading';
-import { ErrorDisplay } from '@/components/ui/ErrorDisplay';
-import { FloatingActionButton } from '@/components/ui/FloatingActionButton';
-import SafetyStatusIndicator from '@/components/dashboard/SafetyStatusIndicator';
-import SafetyTipsCarousel from '@/components/dashboard/SafetyTipsCarousel';
-import QuickActionsGrid from '@/components/dashboard/QuickActionsGrid';
-import IncidentOverview from '@/components/dashboard/IncidentOverview';
+import Colors from '../../src/constants/Colors';
+import { Loading } from '../../src/components/ui/Loading';
+import { ErrorDisplay } from '../../src/components/ui/ErrorDisplay';
+import { FloatingActionButton } from '../../src/components/ui/FloatingActionButton';
+import SafetyStatusIndicator from '../../src/components/dashboard/SafetyStatusIndicator';
+import SafetyTipsCarousel from '../../src/components/dashboard/SafetyTipsCarousel';
+import QuickActionsGrid from '../../src/components/dashboard/QuickActionsGrid';
+import IncidentOverview from '../../src/components/dashboard/IncidentOverview';
 
 // Mock data
 const alerts = [
@@ -103,7 +103,7 @@ export default function Dashboard() {
         icon={<Plus size={24} color="#FFFFFF" />}
         onPress={() => router.push('/report/incident')}
         label="Report Incident"
-        color={colors.critical}
+        color={colors.emergencyRed}
       />
     </SafeAreaView>
   );

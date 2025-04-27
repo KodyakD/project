@@ -19,7 +19,7 @@ import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Yup from 'yup';
 
-import { useAuth } from '../src/contexts/AuthContext';
+import { useAuth } from '../src/context/AuthContext';
 import { COLORS, FONTS, SIZES } from '../src/constants';
 import Colors from '../src/constants/Colors';
 import { USER_ROLES } from '../src/constants/roles';

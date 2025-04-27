@@ -4,20 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { 
-  Bell, 
-  Globe, 
-  ChevronRight, 
-  Sliders, 
-  Settings as SettingsIcon, 
-  Shield, 
-  Eye, 
-  Volume2, 
-  AlertTriangle,
-  Map 
-} from '@expo/vector-icons/Feather';
-import Colors from '@/constants/Colors';
-import Card from '@/components/ui/Card';
+import { Feather } from '@expo/vector-icons';
+import Colors from '../../src/constants/Colors';
+import Card from '../../src/components/ui/Card';
 
 export default function SettingsScreen() {
   const colorScheme = useColorScheme();
@@ -44,12 +33,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/notifications')}
           >
             <View style={styles.settingIconContainer}>
-              <Bell size={22} color={colors.primary} />
+              <Feather name="bell" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Notifications</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Configure notification preferences
@@ -63,12 +52,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/language')}
           >
             <View style={styles.settingIconContainer}>
-              <Globe size={22} color={colors.primary} />
+              <Feather name="globe" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Language</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Change application language
@@ -82,12 +71,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/accessibility')}
           >
             <View style={styles.settingIconContainer}>
-              <Eye size={22} color={colors.primary} />
+              <Feather name="eye" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Accessibility</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Configure text size, contrast and more
@@ -101,12 +90,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/audio')}
           >
             <View style={styles.settingIconContainer}>
-              <Volume2 size={22} color={colors.primary} />
+              <Feather name="volume-2" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Audio</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Adjust sounds and alerts
@@ -124,12 +113,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/map-display')}
           >
             <View style={styles.settingIconContainer}>
-              <Map size={22} color={colors.primary} />
+              <Feather name="map" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Map Display</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Configure map appearance and features
@@ -143,12 +132,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/location')}
           >
             <View style={styles.settingIconContainer}>
-              <SettingsIcon size={22} color={colors.primary} />
+              <Feather name="settings" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Location Services</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Manage location permissions and accuracy
@@ -166,12 +155,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/privacy')}
           >
             <View style={styles.settingIconContainer}>
-              <Shield size={22} color={colors.primary} />
+              <Feather name="shield" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Privacy</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Manage app permissions and data sharing
@@ -185,12 +174,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/emergency-contacts')}
           >
             <View style={styles.settingIconContainer}>
-              <AlertTriangle size={22} color={colors.primary} />
+              <Feather name="alert-triangle" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Emergency Contacts</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Set up emergency contacts and notifications
@@ -208,12 +197,12 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/data-usage')}
           >
             <View style={styles.settingIconContainer}>
-              <Sliders size={22} color={colors.primary} />
+              <Feather name="sliders" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Data Usage</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Manage offline mode and data preferences
@@ -227,12 +216,12 @@ export default function SettingsScreen() {
             onPress={() => alert('Cache cleared successfully')}
           >
             <View style={styles.settingIconContainer}>
-              <SettingsIcon size={22} color={colors.primary} />
+              <Feather name="trash-2" size={22} color={colors.primary} />
             </View>
             <View style={styles.settingContent}>
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Clear Cache</Text>
-                <ChevronRight size={18} color={colors.textSecondary} />
+                <Feather name="chevron-right" size={18} color={colors.textSecondary} />
               </View>
               <Text style={[styles.settingDescription, { color: colors.textSecondary }]}>
                 Free up storage space used by the app
@@ -242,7 +231,7 @@ export default function SettingsScreen() {
         </Card>
 
         <View style={styles.versionContainer}>
-          <Text style={[styles.versionText, { color: colors.textMuted }]}>
+          <Text style={[styles.versionText, { color: colors.textSecondary }]}>
             Version 1.0.0
           </Text>
         </View>

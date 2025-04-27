@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type QuickActionButtonProps = {

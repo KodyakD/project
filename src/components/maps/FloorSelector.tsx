@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { FloorType } from '@/types/map.types';
-import { FLOORS } from '@/constants/floors';
-import Colors from '@/constants/Colors';
+import { FLOORS } from '../../constants/floors';
+import Colors from '../../constants/Colors';
 
 interface FloorSelectorProps {
   currentFloor: FloorType;

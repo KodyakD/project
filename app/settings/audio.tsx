@@ -4,10 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
-import Card from '@/components/ui/Card';
+import Colors from '../../src/constants/Colors';
+import Card from '../../src/components/ui/Card';
 import Slider from '@react-native-community/slider';
-import { Volume2, BellOff, AlertTriangle, Check } from '@expo/vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 
 export default function AudioSettingsScreen() {
   const colorScheme = useColorScheme();
@@ -36,7 +36,7 @@ export default function AudioSettingsScreen() {
     { id: 'alert_4', name: 'Soft Alert' },
   ];
 
-  const playSound = (soundId) => {
+  const playSound = (soundId: string) => {
     // Here we would normally play the sound
     alert(`Playing ${soundId} sample`);
   };
@@ -108,7 +108,7 @@ export default function AudioSettingsScreen() {
           <View style={styles.sliderContainer}>
             <Text style={[styles.sliderLabel, { color: colors.text }]}>Master Volume</Text>
             <View style={styles.sliderRow}>
-              <Volume2 size={16} color={colors.textSecondary} />
+              <Feather name="volume-2" size={16} color={colors.textSecondary} />
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -121,7 +121,7 @@ export default function AudioSettingsScreen() {
                 thumbTintColor={colors.primary}
                 disabled={!masterSound}
               />
-              <Volume2 size={22} color={colors.textSecondary} />
+              <Feather name="volume-2" size={22} color={colors.textSecondary} />
             </View>
           </View>
 
@@ -129,7 +129,7 @@ export default function AudioSettingsScreen() {
           <View style={styles.sliderContainer}>
             <Text style={[styles.sliderLabel, { color: colors.text }]}>Alert Volume</Text>
             <View style={styles.sliderRow}>
-              <BellOff size={16} color={colors.textSecondary} />
+              <Feather name="bell-off" size={16} color={colors.textSecondary} />
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -142,7 +142,7 @@ export default function AudioSettingsScreen() {
                 thumbTintColor={colors.primary}
                 disabled={!masterSound || !alertSounds}
               />
-              <AlertTriangle size={22} color={colors.textSecondary} />
+              <Feather name="alert-triangle" size={22} color={colors.textSecondary} />
             </View>
           </View>
 
@@ -150,7 +150,7 @@ export default function AudioSettingsScreen() {
           <View style={styles.sliderContainer}>
             <Text style={[styles.sliderLabel, { color: colors.text }]}>UI Sound Volume</Text>
             <View style={styles.sliderRow}>
-              <Volume2 size={16} color={colors.textSecondary} />
+              <Feather name="volume" size={16} color={colors.textSecondary} />
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -163,7 +163,7 @@ export default function AudioSettingsScreen() {
                 thumbTintColor={colors.primary}
                 disabled={!masterSound || !uiSounds}
               />
-              <Volume2 size={22} color={colors.textSecondary} />
+              <Feather name="volume" size={22} color={colors.textSecondary} />
             </View>
           </View>
 
@@ -171,7 +171,7 @@ export default function AudioSettingsScreen() {
           <View style={styles.sliderContainer}>
             <Text style={[styles.sliderLabel, { color: colors.text }]}>Notification Volume</Text>
             <View style={styles.sliderRow}>
-              <Volume2 size={16} color={colors.textSecondary} />
+              <Feather name="volume-2" size={16} color={colors.textSecondary} />
               <Slider
                 style={styles.slider}
                 minimumValue={0}
@@ -184,7 +184,7 @@ export default function AudioSettingsScreen() {
                 thumbTintColor={colors.primary}
                 disabled={!masterSound || !notificationSounds}
               />
-              <Volume2 size={22} color={colors.textSecondary} />
+              <Feather name="volume-2" size={22} color={colors.textSecondary} />
             </View>
           </View>
         </Card>
@@ -268,7 +268,7 @@ export default function AudioSettingsScreen() {
               key={tone.id}
               style={[
                 styles.toneItem,
-                tone.id === selectedAlertTone && { backgroundColor: colors.primaryLight },
+                tone.id === selectedAlertTone && { backgroundColor: `${colors.primary}20` },
                 tone.id === alertTones[alertTones.length - 1].id ? { borderBottomWidth: 0 } : null,
               ]}
               onPress={() => setSelectedAlertTone(tone.id)}
@@ -285,13 +285,13 @@ export default function AudioSettingsScreen() {
                 </TouchableOpacity>
               </View>
               {tone.id === selectedAlertTone && (
-                <Check size={22} color={colors.primary} />
+                <Feather name="check" size={22} color={colors.primary} />
               )}
             </TouchableOpacity>
           ))}
         </Card>
 
-        <Text style={[styles.note, { color: colors.textMuted }]}>
+        <Text style={[styles.note, { color: colors.textSecondary }]}>
           Note: Emergency alert sounds cannot be disabled for your safety.
         </Text>
       </ScrollView>

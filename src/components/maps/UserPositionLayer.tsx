@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocation } from '@/services/locationService';
-import Colors from '@/constants/Colors';
+import { useLocation } from '../../services/locationService';
+import Colors from '../../constants/Colors';
 import { FloorType } from '@/types/map.types';
 
 interface UserPositionLayerProps {

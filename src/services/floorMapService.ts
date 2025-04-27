@@ -1,5 +1,5 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '../config/firebase';
 import { FloorType } from '@/types/map.types';
 
 // Collection reference

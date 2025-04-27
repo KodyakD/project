@@ -1,10 +1,13 @@
+// User roles in the application
 export const USER_ROLES = {
   ADMIN: 'admin',
-  TECHNICAL_EXPERT: 'technical_expert',
-  STAFF: 'staff',
-  STUDENT: 'student',
+  MANAGER: 'manager',
+  FIRE_FIGHTER: 'fire_fighter',
+  TECHNICIAN: 'technician',
   GUEST: 'guest',
-} as const;
+  RESCUER: 'rescuer',
+  USER: 'user',
+};
 
 export type UserRole = typeof USER_ROLES[keyof typeof USER_ROLES] | 'student' | 'staff' | 'technical_expert' | 'admin' | 'guest';
 

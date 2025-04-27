@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Switch, ScrollView, Slider } from 'react-native';
+import { StyleSheet, View, Text, Switch, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Slider from '@react-native-community/slider';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
-import Card from '@/components/ui/Card';
+import Colors from '../../src/constants/Colors';
+import Card from '../../src/components/ui/Card';
 
 export default function AccessibilitySettingsScreen() {
   const colorScheme = useColorScheme();

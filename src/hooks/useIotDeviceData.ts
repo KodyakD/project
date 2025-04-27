@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db } from '../config/firebase';
 import { DeviceData } from '@/types/device';
 
 interface UseIotDeviceDataResult {

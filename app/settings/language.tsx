@@ -4,9 +4,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import { Check } from '@expo/vector-icons/Feather';
-import Colors from '@/constants/Colors';
-import Card from '@/components/ui/Card';
+import { Feather } from '@expo/vector-icons';
+import Colors from '../../src/constants/Colors';
+import Card from '../../src/components/ui/Card';
 
 const LANGUAGES = [
   { code: 'en', name: 'English' },
@@ -59,13 +59,13 @@ export default function LanguageSettingsScreen() {
                 {language.name}
               </Text>
               {selectedLanguage === language.code && (
-                <Check size={20} color={colors.primary} />
+                <Feather name="check" size={20} color={colors.primary} />
               )}
             </TouchableOpacity>
           ))}
         </Card>
         
-        <Text style={[styles.note, { color: colors.textMuted }]}>
+        <Text style={[styles.note, { color: colors.textSecondary }]}>
           Note: Some alert content may still appear in English for safety reasons.
         </Text>
       </ScrollView>

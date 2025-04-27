@@ -1,5 +1,5 @@
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '@/config/firebase';
+import { storage } from '../config/firebase';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,7 +10,7 @@ import { Asset } from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
 import apiClient from './apiClient';
-import { handleApiError } from '@/utils/errorHandling';
+import { handleApiError } from '../utils/errorHandling';
 import { db } from '../config/firebase';
 import { doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 

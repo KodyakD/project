@@ -25,7 +25,7 @@ import Constants from 'expo-constants';
 
 // Use the default export from AuthContext which is the useAuth hook
 // In login.tsx, use this:
-import { useAuth } from '../src/context/AuthContext';
+import { useAuth } from '../src/context/AuthContext'; // Updated to use singular "context"
 import { COLORS, FONTS, SIZES } from '../src/constants';
 import Colors from '../src/constants/Colors';
 
@@ -38,6 +38,220 @@ const SSO_CONFIG = {
   discoveryUrl: 'https://university-sso.example.com/.well-known/openid-configuration',
   scopes: ['openid', 'profile', 'email'],
 };
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: SIZES.padding,
+    paddingTop: SIZES.padding,
+    paddingBottom: SIZES.padding * 2,
+  },
+  header: {
+    alignItems: 'center',
+    marginTop: SIZES.padding,
+    marginBottom: SIZES.padding * 1.5,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: SIZES.margin / 2,
+  },
+  appName: {
+    ...FONTS.h2,
+    marginBottom: SIZES.margin / 4,
+  },
+  tagline: {
+    ...FONTS.body3,
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    marginBottom: SIZES.margin * 1.5,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    gap: 8,
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+  },
+  tabText: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  formContainer: {
+    width: '100%',
+  },
+  label: {
+    ...FONTS.body3,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  input: {
+    height: SIZES.inputHeight,
+    borderWidth: 1,
+    borderRadius: SIZES.radius,
+    paddingHorizontal: 12,
+    marginBottom: SIZES.margin,
+    ...FONTS.body2,
+  },
+  rememberForgotRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: SIZES.margin * 1.5,
+  },
+  rememberMeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderRadius: 4,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  rememberMeText: {
+    ...FONTS.body3,
+  },
+  forgotPasswordText: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  loginButton: {
+    height: SIZES.buttonHeight,
+    borderRadius: SIZES.radius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SIZES.margin * 1.5,
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    ...FONTS.button,
+  },
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 5,
+  },
+  registerText: {
+    ...FONTS.body3,
+  },
+  registerLink: {
+    ...FONTS.body3,
+    fontWeight: '500',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: SIZES.radius,
+    marginBottom: SIZES.margin,
+  },
+  errorText: {
+    ...FONTS.body3,
+    marginLeft: 8,
+    flex: 1,
+  },
+  // QR code scanner styles
+  qrContainer: {
+    alignItems: 'center',
+  },
+  scannerContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    marginBottom: SIZES.margin * 1.5,
+    borderRadius: SIZES.radius,
+    overflow: 'hidden',
+  },
+  scannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scannerTarget: {
+    width: 200,
+    height: 200,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+  },
+  qrInstructions: {
+    ...FONTS.body3,
+    textAlign: 'center',
+    marginBottom: SIZES.margin * 1.5,
+    paddingHorizontal: SIZES.padding,
+  },
+  rescanButton: {
+    paddingHorizontal: SIZES.padding,
+    paddingVertical: 8,
+    borderRadius: SIZES.radius,
+  },
+  rescanButtonText: {
+    ...FONTS.buttonSmall,
+    color: '#FFFFFF',
+  },
+  cameraContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SIZES.padding,
+  },
+  cameraText: {
+    ...FONTS.body2,
+    marginTop: SIZES.margin,
+    marginBottom: SIZES.margin / 2,
+    textAlign: 'center',
+  },
+  cameraSubtext: {
+    ...FONTS.body3,
+    textAlign: 'center',
+  },
+  // SSO styles
+  ssoContainer: {
+    alignItems: 'center',
+    padding: SIZES.padding,
+  },
+  universityLogo: {
+    width: 120,
+    height: 120,
+    marginBottom: SIZES.margin,
+  },
+  ssoText: {
+    ...FONTS.body2,
+    fontWeight: '500',
+    marginBottom: SIZES.margin / 2,
+  },
+  ssoSubtext: {
+    ...FONTS.body3,
+    textAlign: 'center',
+    marginBottom: SIZES.margin * 1.5,
+  },
+  ssoButton: {
+    flexDirection: 'row',
+    height: SIZES.buttonHeight,
+    paddingHorizontal: SIZES.padding,
+    borderRadius: SIZES.radius,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+  },
+  ssoButtonText: {
+    color: '#FFFFFF',
+    ...FONTS.button,
+  },
+});
 
 // Make sure the default export is properly defined
 export default function LoginScreen() {
@@ -470,217 +684,3 @@ export default function LoginScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: SIZES.padding,
-    paddingTop: SIZES.padding,
-    paddingBottom: SIZES.padding * 2,
-  },
-  header: {
-    alignItems: 'center',
-    marginTop: SIZES.padding,
-    marginBottom: SIZES.padding * 1.5,
-  },
-  logo: {
-    width: 80,
-    height: 80,
-    marginBottom: SIZES.margin / 2,
-  },
-  appName: {
-    ...FONTS.h2,
-    marginBottom: SIZES.margin / 4,
-  },
-  tagline: {
-    ...FONTS.body3,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    marginBottom: SIZES.margin * 1.5,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0, 0, 0, 0.1)',
-  },
-  tab: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 8,
-  },
-  activeTab: {
-    borderBottomWidth: 2,
-  },
-  tabText: {
-    ...FONTS.body3,
-    fontWeight: '500',
-  },
-  formContainer: {
-    width: '100%',
-  },
-  label: {
-    ...FONTS.body3,
-    fontWeight: '500',
-    marginBottom: 8,
-  },
-  input: {
-    height: SIZES.inputHeight,
-    borderWidth: 1,
-    borderRadius: SIZES.radius,
-    paddingHorizontal: 12,
-    marginBottom: SIZES.margin,
-    ...FONTS.body2,
-  },
-  rememberForgotRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SIZES.margin * 1.5,
-  },
-  rememberMeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderRadius: 4,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  rememberMeText: {
-    ...FONTS.body3,
-  },
-  forgotPasswordText: {
-    ...FONTS.body3,
-    fontWeight: '500',
-  },
-  loginButton: {
-    height: SIZES.buttonHeight,
-    borderRadius: SIZES.radius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: SIZES.margin * 1.5,
-  },
-  loginButtonText: {
-    color: '#FFFFFF',
-    ...FONTS.button,
-  },
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 5,
-  },
-  registerText: {
-    ...FONTS.body3,
-  },
-  registerLink: {
-    ...FONTS.body3,
-    fontWeight: '500',
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderRadius: SIZES.radius,
-    marginBottom: SIZES.margin,
-  },
-  errorText: {
-    ...FONTS.body3,
-    marginLeft: 8,
-    flex: 1,
-  },
-  // QR code scanner styles
-  qrContainer: {
-    alignItems: 'center',
-  },
-  scannerContainer: {
-    width: '100%',
-    aspectRatio: 1,
-    marginBottom: SIZES.margin * 1.5,
-    borderRadius: SIZES.radius,
-    overflow: 'hidden',
-  },
-  scannerOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  scannerTarget: {
-    width: 200,
-    height: 200,
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    borderRadius: 16,
-    backgroundColor: 'transparent',
-  },
-  qrInstructions: {
-    ...FONTS.body3,
-    textAlign: 'center',
-    marginBottom: SIZES.margin * 1.5,
-    paddingHorizontal: SIZES.padding,
-  },
-  rescanButton: {
-    paddingHorizontal: SIZES.padding,
-    paddingVertical: 8,
-    borderRadius: SIZES.radius,
-  },
-  rescanButtonText: {
-    ...FONTS.buttonSmall,
-    color: '#FFFFFF',
-  },
-  cameraContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SIZES.padding,
-  },
-  cameraText: {
-    ...FONTS.body2,
-    marginTop: SIZES.margin,
-    marginBottom: SIZES.margin / 2,
-    textAlign: 'center',
-  },
-  cameraSubtext: {
-    ...FONTS.body3,
-    textAlign: 'center',
-  },
-  // SSO styles
-  ssoContainer: {
-    alignItems: 'center',
-    padding: SIZES.padding,
-  },
-  universityLogo: {
-    width: 120,
-    height: 120,
-    marginBottom: SIZES.margin,
-  },
-  ssoText: {
-    ...FONTS.body2,
-    fontWeight: '500',
-    marginBottom: SIZES.margin / 2,
-  },
-  ssoSubtext: {
-    ...FONTS.body3,
-    textAlign: 'center',
-    marginBottom: SIZES.margin * 1.5,
-  },
-  ssoButton: {
-    flexDirection: 'row',
-    height: SIZES.buttonHeight,
-    paddingHorizontal: SIZES.padding,
-    borderRadius: SIZES.radius,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 10,
-  },
-  ssoButtonText: {
-    color: '#FFFFFF',
-    ...FONTS.button,
-  },
-});

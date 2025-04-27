@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useLocation } from '@/services/locationService';
-import { usePermissions } from '@/context/PermissionContext';
-import Colors from '@/constants/Colors';
-import { FLOORS } from '@/constants/floors';
+import { useLocation } from '../../services/locationService';
+import { usePermissions } from '../../context/PermissionContext';
+import Colors from '../../constants/Colors';
+import { FLOORS } from '../../constants/floors';
 import { FloorType } from '@/types/map.types';
 
 interface WhereAmIProps {

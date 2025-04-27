@@ -9,7 +9,7 @@ import {
   useColorScheme 
 } from 'react-native';
 import { AlertCircle, ArrowRight, Info } from '@expo/vector-icons/Feather';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
 

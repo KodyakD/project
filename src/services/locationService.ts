@@ -2,13 +2,13 @@ import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { useState, useEffect } from 'react';
 import { FloorType } from '@/types/map.types';
-import { FLOORS } from '@/constants/floors';
+import { FLOORS } from '../constants/floors';
 import { 
   watchIndoorPosition, 
   getCurrentIndoorPosition, 
   LocationState,
   IndoorPositioningOptions
-} from '@/components/maps/IndoorPositioning';
+} from '../components/maps/IndoorPositioning';
 
 const LOCATION_TRACKING_TASK = 'background-location-task';
 

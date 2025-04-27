@@ -17,7 +17,7 @@ import { router } from 'expo-router';
 import { X, Camera, Flame, CloudFog, Wind, Building, TriangleAlert as AlertTriangle, User, MapPin, Image as ImageIcon, Plus } from 'lucide-react-native';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
-import Button from '@/components/ui/Button';
+import Button from '../../src/components/ui/Button';
 
 // Mock building and floor data
 const buildings = [
@@ -75,7 +75,18 @@ export default function ReportIncidentScreen() {
     'https://images.pexels.com/photos/51951/forest-fire-fire-smoke-conservation-51951.jpeg?auto=compress&cs=tinysrgb&w=240&h=240&dpr=2',
   ];
   
-  const handleSubmit = (values) => {
+  // Define types for form values
+  interface IncidentReportValues {
+    incidentType: string;
+    severity: string;
+    building: string;
+    floor: string;
+    roomNumber: string;
+    description: string;
+    images: string[];
+  }
+
+  const handleSubmit = (values: IncidentReportValues): void => {
     console.log('Submitted values:', values);
     
     // In a real app, this would send the data to the server

@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, Bell, Calendar, Layers, Info, Check, Trash2 } from '@expo/vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import Colors from '../../src/constants/Colors';
 import Card from '../../src/components/ui/Card';
 import { Loading } from '../../src/components/ui/Loading';
@@ -15,6 +15,135 @@ import Button from '../../src/components/ui/Button';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function NotificationsScreen() {
+  const styles = StyleSheet.create({
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: 'bold',
+    },
+    badge: {
+      marginLeft: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      borderRadius: 12,
+    },
+    badgeText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    actionBar: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      paddingHorizontal: 16,
+      marginBottom: 8,
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 16,
+      marginLeft: 8,
+    },
+    actionButtonText: {
+      fontSize: 12,
+      marginLeft: 4,
+    },
+    content: {
+      flex: 1,
+    },
+    filtersContainer: {
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+    },
+    filterButton: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 16,
+      marginRight: 8,
+      borderWidth: 2,
+    },
+    activeFilterButton: {
+      borderWidth: 2,
+    },
+    filterText: {
+      fontSize: 14,
+    },
+    activeFilterText: {
+      fontWeight: '600',
+    },
+    notificationsList: {
+      paddingHorizontal: 16,
+      paddingBottom: 24,
+    },
+    notificationCard: {
+      marginBottom: 12,
+      padding: 14,
+      borderRadius: 12,
+    },
+    unreadCard: {
+      borderLeftWidth: 3,
+    },
+    cardHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    notificationTime: {
+      fontSize: 12,
+    },
+    notificationTitle: {
+      fontSize: 16,
+      fontWeight: '500',
+      marginBottom: 4,
+    },
+    unreadTitle: {
+      fontWeight: '600',
+    },
+    notificationBody: {
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    unreadIndicator: {
+      position: 'absolute',
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      top: 14,
+      left: 14,
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    emptyText: {
+      fontSize: 18,
+      fontWeight: '500',
+      marginTop: 16,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      textAlign: 'center',
+      marginTop: 8,
+      paddingHorizontal: 24,
+    },
+    refreshButton: {
+      marginTop: 24,
+      minWidth: 120,
+    },
+  });
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
@@ -68,17 +197,11 @@ export default function NotificationsScreen() {
     
     // Navigate based on notification type
     if (notification.data?.incidentId) {
-      router.push(`/incidents/${notification.data.incidentId}`);
+      // Update to match your file structure - likely /report/details/[id]
+      router.push(`/report/details/${notification.data.incidentId}`);
     } else if (notification.data?.emergencyId) {
-      router.push(`/emergency/${notification.data.emergencyId}`);
-    } else if (notification.data?.maintenanceId) {
-      router.push(`/maintenance/${notification.data.maintenanceId}`);
-    } else {
-      // Default notification detail view
-      router.push(`/notification-details?id=${notification.id}`);
-    }
-  };
-
+      // Update if you have a specific emergency detail screen
+     
   const getFilteredNotifications = useMemo(() => {
     if (filter === 'all') return notifications;
     return notifications.filter(notification => notification.type === filter);
@@ -87,19 +210,19 @@ export default function NotificationsScreen() {
   const getTypeIcon = (type: NotificationType, size: number = 20) => {
     switch (type) {
       case 'emergency':
-        return <AlertTriangle size={size} color={colors.critical} />;
+        return <Feather name="alert-triangle" size={size} color={colors.emergencyRed} />;
       case 'system_announcement':
-        return <Info size={size} color={colors.info} />;
+        return <Feather name="info" size={size} color={colors.primary} />;
       case 'maintenance_alert':
-        return <Layers size={size} color={colors.warning} />;
+        return <Feather name="layers" size={size} color={colors.warning} />;
       case 'incident_assigned':
       case 'incident_updated':
       case 'incident_resolved':
-        return <Layers size={size} color={colors.success} />;
+        return <Feather name="layers" size={size} color={colors.success} />;
       case 'user_mention':
-        return <Bell size={size} color={colors.primary} />;
+        return <Feather name="bell" size={size} color={colors.primary} />;
       default:
-        return <Bell size={size} color={colors.primary} />;
+        return <Feather name="bell" size={size} color={colors.primary} />;
     }
   };
 
@@ -141,7 +264,7 @@ export default function NotificationsScreen() {
             style={[styles.actionButton, { backgroundColor: colors.card }]} 
             onPress={handleMarkAllAsRead}
           >
-            <Check size={16} color={colors.success} />
+            <Feather name="check" size={16} color={colors.success} />
             <Text style={[styles.actionButtonText, { color: colors.text }]}>
               Mark all read
             </Text>
@@ -153,7 +276,7 @@ export default function NotificationsScreen() {
             style={[styles.actionButton, { backgroundColor: colors.card }]} 
             onPress={handleClearAll}
           >
-            <Trash2 size={16} color={colors.error} />
+            <Feather name="trash-2" size={16} color={colors.error} />
             <Text style={[styles.actionButtonText, { color: colors.text }]}>
               Clear all
             </Text>
@@ -195,7 +318,7 @@ export default function NotificationsScreen() {
           />
         ) : (
           <View style={styles.emptyContainer}>
-            <Bell size={50} color={colors.textSecondary} />
+            <Feather name="bell" size={50} color={colors.textSecondary} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
               No notifications
             </Text>
@@ -207,7 +330,7 @@ export default function NotificationsScreen() {
             <Button 
               title="Refresh" 
               onPress={onRefresh} 
-              variant="outlined"
+              variant="outline"
               style={styles.refreshButton}
               loading={refreshing}
             />
@@ -280,11 +403,11 @@ function NotificationCard({
 }) {
   return (
     <TouchableOpacity onPress={onPress}>
-      <Card style={[
+      <Card style={StyleSheet.flatten([
         styles.notificationCard, 
         !notification.read && styles.unreadCard,
         { backgroundColor: colors.card }
-      ]}>
+      ])}>
         <View style={styles.cardHeader}>
           {getTypeIcon(notification.type, 16)}
           <Text style={[
@@ -324,132 +447,4 @@ function NotificationCard({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  badge: {
-    marginLeft: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  badgeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  actionBar: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    paddingHorizontal: 16,
-    marginBottom: 8,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 8,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  content: {
-    flex: 1,
-  },
-  filtersContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginRight: 8,
-    borderWidth: 2,
-  },
-  activeFilterButton: {
-    borderWidth: 2,
-  },
-  filterText: {
-    fontSize: 14,
-  },
-  activeFilterText: {
-    fontWeight: '600',
-  },
-  notificationsList: {
-    paddingHorizontal: 16,
-    paddingBottom: 24,
-  },
-  notificationCard: {
-    marginBottom: 12,
-    padding: 14,
-    borderRadius: 12,
-  },
-  unreadCard: {
-    borderLeftWidth: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  notificationTime: {
-    fontSize: 12,
-  },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  unreadTitle: {
-    fontWeight: '600',
-  },
-  notificationBody: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  unreadIndicator: {
-    position: 'absolute',
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    top: 14,
-    left: 14,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  emptyText: {
-    fontSize: 18,
-    fontWeight: '500',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    textAlign: 'center',
-    marginTop: 8,
-    paddingHorizontal: 24,
-  },
-  refreshButton: {
-    marginTop: 24,
-    minWidth: 120,
-  },
-});
+  }}

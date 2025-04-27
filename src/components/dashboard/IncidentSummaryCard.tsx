@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 import {
   AlertTriangle,
   Clock,
@@ -11,7 +11,7 @@ import {
   User,
   AlertCircle,
 } from '@expo/vector-icons/Feather';
-import Card, { CardHeader, CardContent, CardFooter } from '@/components/ui/Card';
+import Card, { CardHeader, CardContent, CardFooter } from '../ui/Card';
 
 export type IncidentSummary = {
   id: string;

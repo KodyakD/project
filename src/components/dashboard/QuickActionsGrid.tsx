@@ -1,9 +1,9 @@
 import React from 'react';
 import { StyleSheet, View, Text, FlatList, useWindowDimensions } from 'react-native';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 import QuickActionButton from './QuickActionButton';
-import Card from '@/components/ui/Card';
+import Card from '../ui/Card';
 import { 
   Map, 
   Bell, 

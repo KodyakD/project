@@ -7,7 +7,7 @@ import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { sendPasswordResetEmail } from 'firebase/auth';
 
-import { Button } from '../src/components/ui/Button';
+import Button from '../src/components/ui/Button';
 import { TextInput } from '../src/components/ui/TextInput';
 import { auth } from '../src/config/firebase';
 import Colors from '../src/constants/Colors';
@@ -78,7 +78,7 @@ function ForgotPasswordScreen() {
             <Text style={[styles.title, { color: colors.text }]}>
               Forgot Password
             </Text>
-            <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
               Enter your email to reset your password
             </Text>
           </View>
@@ -110,18 +110,17 @@ function ForgotPasswordScreen() {
               </View>
 
               <Button 
+                title="Reset Password"
                 onPress={handleResetPassword} 
                 loading={loading}
                 fullWidth
                 style={styles.resetButton}
-              >
-                Reset Password
-              </Button>
+              />
             </View>
           )}
 
           <View style={styles.footer}>
-            <Text style={[styles.footerText, { color: colors.textMuted }]}>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>
               Remember your password?
             </Text>
             <TouchableOpacity onPress={navigateToLogin}>

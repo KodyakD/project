@@ -1,223 +1,699 @@
-// filepath: mobile-app/project/src/context/AuthContext.tsx
 import * as React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useSegments, useRootNavigationState } from 'expo-router';
+import * as WebBrowser from 'expo-web-browser';
+import * as AuthSession from 'expo-auth-session';
+import * as SecureStore from 'expo-secure-store';
+import { jwtDecode } from 'jwt-decode';
+// Add this Buffer polyfill for React Native
+import { Buffer as BufferPolyfill } from 'buffer';
+global.Buffer = global.Buffer || BufferPolyfill;
 
-// Define the auth state type
-interface AuthState {
-  initialized: boolean;
-  isAuthenticated: boolean;
-  isAnonymous: boolean;
-  user: any | null;
+import { auth, db as firestore } from '../config/firebase';
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut,
+  onAuthStateChanged,
+  sendPasswordResetEmail,
+  confirmPasswordReset as firebaseConfirmPasswordReset,
+  updateProfile,
+  User as FirebaseUser,
+  UserCredential,
+  getIdToken,
+  signInWithCredential,
+  GoogleAuthProvider,
+  AuthError,
+} from 'firebase/auth';
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { USER_ROLES } from '../constants/roles';
+
+// Store keys
+const ACCESS_TOKEN_KEY = 'auth_access_token';
+const REFRESH_TOKEN_KEY = 'auth_refresh_token';
+const USER_DATA_KEY = 'auth_user_data';
+const { createContext, useState, useContext, useEffect } = React;
+// JWT token type
+interface JwtToken {
+  exp: number;
+  sub: string;
+  email: string;
+  role: string;
+  [key: string]: any;
 }
 
-// Define the auth context type
+interface UserProfile {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  displayName?: string;
+  photoURL?: string;
+  role: string;
+  lastLogin?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+  phoneNumber?: string;
+  department?: string;
+  isEmailVerified: boolean;
+  isAnonymous?: boolean;
+}
+
 interface AuthContextType {
-  authState: AuthState;
-  login: (email: string, password: string) => Promise<void>;
-  loginWithQrCode: (code: string) => Promise<void>;
-  logout: () => Promise<void>;
+  user: UserProfile | null;
+  isAuthenticated: boolean;
+  isAnonymous: boolean;
+  initialized: boolean;
+  tokenExpiryTime?: string;
+  isLoading: boolean;
   error: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
+  loginWithSSO: (clientId: string, discoveryUrl: string) => Promise<void>;
+  loginWithQrCode: (code: string) => Promise<void>;
+  register: (email: string, password: string, userData: Partial<UserProfile>) => Promise<void>;
+  logout: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  confirmPasswordReset: (code: string, newPassword: string) => Promise<void>;
+  updateUserProfile: (data: Partial<UserProfile>) => Promise<void>;
+  refreshToken: () => Promise<string | null>;
+  hasRole: (roles: string | string[]) => Promise<boolean>;
+  updateTokenExpiryTime: () => Promise<void>;
   clearError: () => void;
 }
 
-// Create the auth context with default values
-const defaultState: AuthState = {
-  initialized: false,
+// Create context with default values
+const AuthContext = createContext<AuthContextType>({
+  user: null,
   isAuthenticated: false,
   isAnonymous: false,
-  user: null,
-};
-
-const defaultContext: AuthContextType = {
-  authState: defaultState,
-  login: async () => {},
-  loginWithQrCode: async () => {},
-  logout: async () => {},
+  initialized: false,
+  isLoading: true,
   error: null,
+  login: async () => {},
+  loginWithGoogle: async () => {},
+  loginWithSSO: async () => {},
+  loginWithQrCode: async () => {},
+  register: async () => {},
+  logout: async () => {},
+  resetPassword: async () => {},
+  confirmPasswordReset: async () => {},
+  updateUserProfile: async () => {},
+  refreshToken: async () => null,
+  hasRole: async () => false,
+  updateTokenExpiryTime: async () => {},
   clearError: () => {},
-};
+});
 
-// Create context
-const AuthContext = React.createContext<AuthContextType>(defaultContext);
+// Expose the auth context hook
+export const useAuth = () => useContext(AuthContext);
 
-// Auth Provider component - class-based to avoid hooks issues
-export class AuthProvider extends React.Component<{children: React.ReactNode}, {authState: AuthState, error: string | null}> {
-  constructor(props: {children: React.ReactNode}) {
-    super(props);
-    this.state = {
-      authState: defaultState,
-      error: null
+// Provider component
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [initialized, setInitialized] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [tokenExpiryTime, setTokenExpiryTime] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  const segments = useSegments();
+  const navigationState = useRootNavigationState();
+
+  // Load stored user data on initial mount
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        // Load user data from storage instead of using setPersistence
+        const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+        if (userData) {
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          setIsAnonymous(parsedUser.isAnonymous || false);
+        }
+        
+        // Set up firebase auth state listener
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            // User is signed in
+            const userProfile = await fetchOrCreateUserProfile(firebaseUser);
+            setUser(userProfile);
+            setIsAnonymous(firebaseUser.isAnonymous);
+            await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userProfile));
+            
+            // Store tokens
+            const token = await firebaseUser.getIdToken();
+            await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
+            
+            // Also store refresh token if available
+            const refreshToken = firebaseUser.refreshToken;
+            if (refreshToken) {
+              await SecureStore.setItemAsync(REFRESH_TOKEN_KEY, refreshToken);
+            }
+          } else {
+            // User is signed out
+            setUser(null);
+            setIsAnonymous(false);
+            await AsyncStorage.removeItem(USER_DATA_KEY);
+            await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+            await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+          }
+          
+          setInitialized(true);
+          setIsLoading(false);
+        });
+        
+        return unsubscribe;
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+        setInitialized(true);
+        setIsLoading(false);
+        return () => {};
+      }
     };
-
-    // Bind methods
-    this.login = this.login.bind(this);
-    this.loginWithQrCode = this.loginWithQrCode.bind(this);
-    this.logout = this.logout.bind(this);
-    this.clearError = this.clearError.bind(this);
-  }
-
-  componentDidMount() {
-    this.initializeAuth();
-  }
-
-  async initializeAuth() {
+    
+    initializeAuth();
+  }, []);
+  
+  // Handle protected routes
+  useEffect(() => {
+    if (!navigationState?.key || isLoading || !initialized) return;
+    
+    const inProtectedRoute = segments[0] === '(tabs)' || 
+                            segments[0] === 'profile' || 
+                            segments[0] === 'incident';
+    const inAuthRoute = segments[0] === 'login' || 
+                        segments[0] === 'register' || 
+                        segments[0] === 'reset-password';
+    
+    if (!user && inProtectedRoute) {
+      // Redirect to login if trying to access protected route while not authenticated
+      router.replace('/login');
+    } else if (user && inAuthRoute) {
+      // Redirect to home if trying to access auth routes while authenticated
+      router.replace('/');
+    }
+  }, [segments, user, isLoading, initialized, navigationState?.key]);
+  
+  // Fetch or create user profile in Firestore
+  const fetchOrCreateUserProfile = async (firebaseUser: FirebaseUser): Promise<UserProfile> => {
     try {
-      // Check if user data exists in storage
-      const userData = await AsyncStorage.getItem('user_data');
+      const userRef = doc(firestore, 'users', firebaseUser.uid);
+      const userSnap = await getDoc(userRef);
       
-      if (userData) {
-        // User is logged in
-        const user = JSON.parse(userData);
-        this.setState({
-          authState: {
-            initialized: true,
-            isAuthenticated: true,
-            isAnonymous: user.isAnonymous || false,
-            user,
-          }
+      if (userSnap.exists()) {
+        // Update last login time
+        await updateDoc(userRef, {
+          lastLogin: serverTimestamp(),
         });
+        
+        return {
+          id: firebaseUser.uid,
+          ...userSnap.data() as Omit<UserProfile, 'id'>,
+          isEmailVerified: firebaseUser.emailVerified,
+          isAnonymous: firebaseUser.isAnonymous,
+        };
       } else {
-        // No user logged in
-        this.setState({
-          authState: {
-            initialized: true,
-            isAuthenticated: false,
-            isAnonymous: false,
-            user: null,
-          }
+        // Create new user profile
+        const newUser: Omit<UserProfile, 'id'> = {
+          email: firebaseUser.email || '',
+          firstName: firebaseUser.displayName?.split(' ')[0] || '',
+          lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+          displayName: firebaseUser.displayName || '',
+          photoURL: firebaseUser.photoURL || '',
+          role: USER_ROLES.FIRE_FIGHTER,
+          lastLogin: new Date(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          isEmailVerified: firebaseUser.emailVerified,
+          isAnonymous: firebaseUser.isAnonymous,
+        };
+        
+        await setDoc(userRef, {
+          ...newUser,
+          lastLogin: serverTimestamp(),
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
+        
+        return {
+          id: firebaseUser.uid,
+          ...newUser,
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching/creating user profile:', error);
+      throw error;
+    }
+  };
+
+  // Email/password login
+  const login = async (email: string, password: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      // Auth state listener will handle setting user
+      
+      return userCredential;
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Google login
+  const loginWithGoogle = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Configure Google sign-in
+      const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
+      const provider = new GoogleAuthProvider();
+      
+      // Start Google sign-in flow
+      const result = await WebBrowser.openAuthSessionAsync(
+        `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=token&scope=profile email`,
+        redirectUri
+      );
+      
+      if (result.type === 'success' && result.url) {
+        // Extract access token from URL
+        const params = new URLSearchParams(new URL(result.url).hash.substr(1));
+        const accessToken = params.get('access_token');
+        
+        if (accessToken) {
+          // Create credential and sign in with Firebase
+          const credential = GoogleAuthProvider.credential(null, accessToken);
+          const userCredential = await signInWithCredential(auth, credential);
+          // Auth state listener will handle setting user
+          
+          return userCredential;
+        }
+      }
+      
+      throw new Error('Google sign in failed');
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // SSO login
+  const loginWithSSO = async (clientId: string, discoveryUrl: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Configure SSO discovery
+      const discovery = await AuthSession.fetchDiscoveryAsync(discoveryUrl);
+      
+      // Start SSO sign-in flow
+      const request = new AuthSession.AuthRequest({
+        clientId,
+        scopes: ['openid', 'profile', 'email'],
+        redirectUri: AuthSession.makeRedirectUri({ useProxy: true }),
+      });
+      
+      const result = await request.promptAsync(discovery);
+      
+      if (result.type === 'success') {
+        const { idToken } = result.params;
+        
+        if (idToken) {
+          // Create credential and sign in with Firebase
+          const credential = GoogleAuthProvider.credential(idToken);
+          const userCredential = await signInWithCredential(auth, credential);
+          // Auth state listener will handle setting user
+          
+          return userCredential;
+        }
+      }
+      
+      throw new Error('SSO sign in failed');
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Register new user
+  const register = async (email: string, password: string, userData: Partial<UserProfile>) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Set display name if provided
+      if (userData.firstName || userData.lastName) {
+        const displayName = `${userData.firstName || ''} ${userData.lastName || ''}`.trim();
+        await updateProfile(firebaseUser, { displayName });
+      }
+      
+      // Create user profile in Firestore
+      const userRef = doc(firestore, 'users', firebaseUser.uid);
+      await setDoc(userRef, {
+        email: firebaseUser.email,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        displayName: firebaseUser.displayName,
+        photoURL: firebaseUser.photoURL,
+        role: userData.role || USER_ROLES.FIRE_FIGHTER,
+        lastLogin: serverTimestamp(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        isEmailVerified: firebaseUser.emailVerified,
+      });
+      
+      // Auth state listener will handle setting user
+      
+      return userCredential;
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // QR Code login for guests
+  const loginWithQrCode = async (qrToken: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Validate the QR token format
+      if (!qrToken || typeof qrToken !== 'string') {
+        throw new Error('Invalid QR code format');
+      }
+      
+      // Create a guest user profile
+      const guestUser: UserProfile = {
+        id: `guest_${Date.now()}`,
+        email: 'guest@example.com',
+        firstName: 'Guest',
+        lastName: 'User',
+        role: USER_ROLES.GUEST,
+        isEmailVerified: false,
+        isAnonymous: true,
+        createdAt: new Date(),
+      };
+      
+      // Store guest user data
+      setUser(guestUser);
+      setIsAnonymous(true);
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(guestUser));
+      
+      // Store guest token with expiration
+      const guestToken = createGuestToken(guestUser);
+      await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, guestToken);
+      
+      // Set a timer to auto-logout after token expiration (4 hours)
+      setTimeout(() => {
+        logout();
+      }, 4 * 60 * 60 * 1000);
+      
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Create a simple guest token for temporary access
+  const createGuestToken = (guestUser: UserProfile): string => {
+    // Very simple token with expiration of 4 hours
+    const payload = {
+      sub: guestUser.id,
+      email: guestUser.email,
+      role: guestUser.role,
+      exp: Math.floor(Date.now() / 1000) + (4 * 60 * 60), // 4 hours
+      iat: Math.floor(Date.now() / 1000),
+    };
+    
+    // In a real app, you would use a proper JWT library and sign this properly
+    return Buffer.from(JSON.stringify(payload)).toString('base64');
+  };
+  
+  // Sign out
+  const logout = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      // Sign out from Firebase
+      await firebaseSignOut(auth);
+      
+      // Clear stored data
+      setUser(null);
+      setIsAnonymous(false);
+      await AsyncStorage.removeItem(USER_DATA_KEY);
+      await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+      await SecureStore.deleteItemAsync(REFRESH_TOKEN_KEY);
+      
+      // Navigate to login
+      router.replace('/login');
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      setError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Password reset
+  const resetPassword = async (email: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      await sendPasswordResetEmail(auth, email);
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Confirm password reset
+  const confirmPasswordReset = async (code: string, newPassword: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      await firebaseConfirmPasswordReset(auth, code, newPassword);
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Update user profile
+  const updateUserProfile = async (data: Partial<UserProfile>) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      if (!user || !auth.currentUser) {
+        throw new Error('No authenticated user');
+      }
+      
+      // Update display name and photo URL in Firebase Auth if provided
+      const updateData: { displayName?: string; photoURL?: string } = {};
+      
+      if (data.firstName || data.lastName) {
+        const firstName = data.firstName || user.firstName;
+        const lastName = data.lastName || user.lastName;
+        updateData.displayName = `${firstName} ${lastName}`.trim();
+      }
+      
+      if (data.photoURL) {
+        updateData.photoURL = data.photoURL;
+      }
+      
+      if (Object.keys(updateData).length > 0) {
+        await updateProfile(auth.currentUser, updateData);
+      }
+      
+      // Update user profile in Firestore
+      const userRef = doc(firestore, 'users', user.id);
+      await updateDoc(userRef, {
+        ...data,
+        updatedAt: serverTimestamp(),
+      });
+      
+      // Update local user state
+      const updatedUser = {
+        ...user,
+        ...data,
+        displayName: updateData.displayName || user.displayName,
+        photoURL: updateData.photoURL || user.photoURL,
+        updatedAt: new Date(),
+      };
+      
+      setUser(updatedUser);
+      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(updatedUser));
+    } catch (error: any) {
+      handleAuthError(error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Get current auth token with automatic refresh if expired
+  const refreshToken = async (): Promise<string | null> => {
+    try {
+      // Check if user is authenticated
+      if (!auth.currentUser) {
+        return null;
+      }
+      
+      // Try to get the stored token
+      let token = await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+      
+      // If token exists, check if it's expired
+      if (token) {
+        try {
+          const decoded = jwtDecode<JwtToken>(token);
+          const currentTime = Math.floor(Date.now() / 1000);
+          
+          // If token is expired or close to expiry (within 5 minutes), refresh it
+          if (decoded.exp < currentTime + 300) {
+            // Get a fresh token from Firebase
+            token = await auth.currentUser.getIdToken(true);
+            await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
+          }
+        } catch (e) {
+          // If token can't be decoded, get a fresh one
+          token = await auth.currentUser.getIdToken(true);
+          await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
+        }
+      } else {
+        // No token stored, get a fresh one
+        token = await auth.currentUser.getIdToken();
+        await SecureStore.setItemAsync(ACCESS_TOKEN_KEY, token);
+      }
+      
+      return token;
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      return null;
+    }
+  };
+  
+  // Check if user has a specific role
+  const hasRole = async (roles: string | string[]): Promise<boolean> => {
+    if (!user) return false;
+    
+    const userRoles = Array.isArray(roles) ? roles : [roles];
+    return userRoles.includes(user.role);
+  };
+  
+  // Update token expiry time
+  const updateTokenExpiryTime = async (): Promise<void> => {
+    try {
+      const token = await refreshToken();
+      if (token) {
+        const decoded = jwtDecode<JwtToken>(token);
+        const expiryDate = new Date(decoded.exp * 1000);
+        setTokenExpiryTime(expiryDate.toISOString());
       }
     } catch (err) {
-      console.error('Error initializing auth:', err);
-      this.setState({
-        authState: {
-          initialized: true,
-          isAuthenticated: false,
-          isAnonymous: false,
-          user: null,
-        }
-      });
+      console.error('Failed to update token expiry time:', err);
     }
-  }
-
-  async login(email: string, password: string) {
-    try {
-      // For now, just a mock implementation
-      if (email && password) {
-        const mockUser = {
-          id: '123',
-          email,
-          displayName: email.split('@')[0],
-          isAnonymous: false,
-        };
-        
-        // Store user data
-        await AsyncStorage.setItem('user_data', JSON.stringify(mockUser));
-        
-        // Update auth state
-        this.setState({
-          authState: {
-            initialized: true,
-            isAuthenticated: true,
-            isAnonymous: false,
-            user: mockUser,
-          },
-          error: null
-        });
-      } else {
-        throw new Error('Email and password are required');
-      }
-    } catch (err: any) {
-      this.setState({ error: err.message || 'Login failed' });
-      throw err;
-    }
-  }
-
-  async loginWithQrCode(code: string) {
-    try {
-      // For now, just a mock implementation
-      if (code) {
-        const mockUser = {
-          id: 'guest-' + Date.now(),
-          displayName: 'Guest User',
-          isAnonymous: true,
-          guestCode: code,
-        };
-        
-        // Store user data
-        await AsyncStorage.setItem('user_data', JSON.stringify(mockUser));
-        
-        // Update auth state
-        this.setState({
-          authState: {
-            initialized: true,
-            isAuthenticated: true,
-            isAnonymous: true,
-            user: mockUser,
-          },
-          error: null
-        });
-      } else {
-        throw new Error('Invalid QR code');
-      }
-    } catch (err: any) {
-      this.setState({ error: err.message || 'QR code login failed' });
-      throw err;
-    }
-  }
-
-  async logout() {
-    try {
-      // Clear user data
-      await AsyncStorage.removeItem('user_data');
+  };
+  
+  // Helper to handle auth errors consistently
+  const handleAuthError = (error: any) => {
+    let errorMessage = 'An unexpected error occurred';
+    
+    if (error instanceof Error) {
+      const authError = error as AuthError;
       
-      // Update auth state
-      this.setState({
-        authState: {
-          initialized: true,
-          isAuthenticated: false,
-          isAnonymous: false,
-          user: null,
-        },
-        error: null
-      });
-    } catch (err: any) {
-      this.setState({ error: err.message || 'Logout failed' });
-      throw err;
+      switch (authError.code) {
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address format';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password';
+          break;
+        case 'auth/email-already-in-use':
+          errorMessage = 'Email address is already in use';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'Password is too weak';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = 'Network error, please check your connection';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many unsuccessful attempts, please try again later';
+          break;
+        default:
+          errorMessage = authError.message || 'Authentication failed';
+      }
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+      errorMessage = error.message as string;
     }
-  }
-
-  clearError() {
-    this.setState({ error: null });
-  }
-
-  render() {
-    const contextValue = {
-      authState: this.state.authState,
-      login: this.login,
-      loginWithQrCode: this.loginWithQrCode,
-      logout: this.logout,
-      error: this.state.error,
-      clearError: this.clearError,
-    };
-
-    return (
-      <AuthContext.Provider value={contextValue}>
-        {this.props.children}
-      </AuthContext.Provider>
-    );
-  }
-}
-
-// Hook to use the auth context
-export function useAuth() {
-  const context = React.useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-}
-
-// Default export
-export default useAuth;
+    
+    setError(errorMessage);
+  };
+  
+  // Clear any error messages
+  const clearError = () => {
+    setError(null);
+  };
+  
+  const value: AuthContextType = {
+    user,
+    isAuthenticated: !!user,
+    isAnonymous,
+    initialized,
+    tokenExpiryTime,
+    isLoading,
+    error,
+    login,
+    loginWithGoogle,
+    loginWithSSO,
+    loginWithQrCode,
+    register,
+    logout,
+    resetPassword,
+    confirmPasswordReset,
+    updateUserProfile,
+    refreshToken,
+    hasRole,
+    updateTokenExpiryTime,
+    clearError,
+  };
+  
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+};

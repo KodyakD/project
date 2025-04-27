@@ -4,8 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
-import Card from '@/components/ui/Card';
+import Colors from '../../src/constants/Colors';
+import Card from '../../src/components/ui/Card';
 
 export default function NotificationSettingsScreen() {
   const colorScheme = useColorScheme();
@@ -168,7 +168,7 @@ export default function NotificationSettingsScreen() {
           </View>
         </Card>
 
-        <Text style={[styles.note, { color: colors.textMuted }]}>
+        <Text style={[styles.note, { color: colors.textSecondary }]}>
           Note: Emergency alerts will always be delivered regardless of your settings to ensure your
           safety.
         </Text>

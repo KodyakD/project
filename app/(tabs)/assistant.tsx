@@ -1,12 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { useColorScheme } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Colors from '../../src/constants/Colors';
 import { Ionicons } from '@expo/vector-icons';
 
+// Define message type
+interface Message {
+  id: string;
+  text: string;
+  sender: 'user' | 'assistant';
+  timestamp: string;
+}
+
 // Sample quick questions
-const QUICK_QUESTIONS = [
+const QUICK_QUESTIONS: string[] = [
   'What should I do in case of fire?',
   'Where are the emergency exits?',
   'How do I report an incident?',
@@ -14,7 +22,7 @@ const QUICK_QUESTIONS = [
 ];
 
 // Sample initial messages
-const INITIAL_MESSAGES = [
+const INITIAL_MESSAGES: Message[] = [
   {
     id: '1',
     text: 'Hello! I am your Fire Safety Assistant. How can I help you today?',
@@ -24,16 +32,27 @@ const INITIAL_MESSAGES = [
 ];
 
 export default function AssistantScreen() {
-  const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
+  const [isSending, setIsSending] = useState(false);
   const colorScheme = useColorScheme() || 'light';
   const colors = Colors[colorScheme];
+  const flatListRef = useRef<FlatList>(null);
+
+  // Auto-scroll to the bottom when messages change
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages]);
 
   const handleSendMessage = () => {
     if (inputText.trim() === '') return;
     
     // Add user message
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       text: inputText,
       sender: 'user',
@@ -42,33 +61,40 @@ export default function AssistantScreen() {
     
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setInputText('');
+    setIsSending(true);
     
     // Simulate assistant response (in a real app, this would call an API)
     setTimeout(() => {
-      const assistantMessage = {
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: 'I understand you need help with "' + inputText + '". This is a placeholder response. In the actual application, this will provide helpful safety information based on your question.',
+        text: 'I understand you need help with "' + userMessage.text + '". This is a placeholder response. In the actual application, this will provide helpful safety information based on your question.',
         sender: 'assistant',
         timestamp: new Date().toISOString(),
       };
       
       setMessages(prevMessages => [...prevMessages, assistantMessage]);
+      setIsSending(false);
     }, 1000);
   };
 
-  const handleQuickQuestion = (question) => {
+  const handleQuickQuestion = (question: string): void => {
     setInputText(question);
+    // Optional: auto-send the question
+    // This can be uncommented if you want questions to be sent automatically
+    // setTimeout(() => {
+    //   handleSendMessage();
+    // }, 100);
   };
 
-  const renderMessage = ({ item }) => (
+  const renderMessage = ({ item }: { item: Message }) => (
     <View 
       style={[
         styles.messageContainer,
         item.sender === 'user' ? styles.userMessageContainer : styles.assistantMessageContainer,
         { 
           backgroundColor: item.sender === 'user' 
-            ? colors.primary 
-            : colorScheme === 'dark' ? colors.card : colors.surface,
+              ? colors.primary 
+              : colorScheme === 'dark' ? colors.card : colors.cardBackground,
         }
       ]}
     >
@@ -86,7 +112,7 @@ export default function AssistantScreen() {
         style={[
           styles.messageTimestamp,
           { 
-            color: item.sender === 'user' ? 'rgba(255,255,255,0.7)' : colors.textMuted 
+            color: item.sender === 'user' ? 'rgba(255,255,255,0.7)' : colors.textSecondary 
           }
         ]}
       >
@@ -95,12 +121,12 @@ export default function AssistantScreen() {
     </View>
   );
 
-  const renderQuickQuestion = ({ item }) => (
+  const renderQuickQuestion = ({ item }: { item: string }) => (
     <TouchableOpacity 
       style={[
         styles.quickQuestionButton,
         { 
-          backgroundColor: colorScheme === 'dark' ? colors.card : colors.surface,
+          backgroundColor: colorScheme === 'dark' ? colors.card : colors.cardBackground,
           borderColor: colors.border,
         }
       ]}
@@ -114,7 +140,7 @@ export default function AssistantScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Assistant</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
+        <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
           Get help with fire safety and emergency procedures
         </Text>
       </View>
@@ -139,6 +165,7 @@ export default function AssistantScreen() {
         keyboardVerticalOffset={100}
       >
         <FlatList
+          ref={flatListRef}
           data={messages}
           renderItem={renderMessage}
           keyExtractor={(item) => item.id}
@@ -148,19 +175,29 @@ export default function AssistantScreen() {
         
         <View style={[styles.inputContainer, { borderColor: colors.border }]}>
           <TextInput
-            style={[styles.input, { color: colors.text, backgroundColor: colorScheme === 'dark' ? colors.card : colors.surface }]}
+            style={[styles.input, { color: colors.text, backgroundColor: colorScheme === 'dark' ? colors.card : colors.cardBackground }]}
             value={inputText}
             onChangeText={setInputText}
             placeholder="Type your question..."
-            placeholderTextColor={colors.textMuted}
+            placeholderTextColor={colors.textSecondary}
             multiline
           />
           <TouchableOpacity 
-            style={[styles.sendButton, { backgroundColor: colors.primary }]}
+            style={[
+              styles.sendButton, 
+              { 
+                backgroundColor: inputText.trim() === '' ? colors.border : colors.primary,
+                opacity: inputText.trim() === '' ? 0.5 : 1 
+              }
+            ]}
             onPress={handleSendMessage}
-            disabled={inputText.trim() === ''}
+            disabled={inputText.trim() === '' || isSending}
           >
-            <Ionicons name="send" size={20} color="#ffffff" />
+            {isSending ? (
+              <Ionicons name="ellipsis-horizontal" size={20} color="#ffffff" />
+            ) : (
+              <Ionicons name="send" size={20} color="#ffffff" />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

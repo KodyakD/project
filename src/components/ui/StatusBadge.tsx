@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 import { useColorScheme } from 'react-native';
 
 type StatusType = 'critical' | 'high' | 'medium' | 'low' | 'resolved';

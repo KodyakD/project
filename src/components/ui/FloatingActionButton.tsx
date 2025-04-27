@@ -3,7 +3,7 @@ import { StyleSheet, TouchableOpacity, View, Text, Animated, Dimensions } from '
 import { useRouter } from 'expo-router';
 import { AlertTriangle, Plus } from '@expo/vector-icons/Feather';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
+import Colors from '../../constants/Colors';
 
 interface FloatingActionButtonProps {
   icon?: React.ReactNode;
