@@ -13,15 +13,7 @@ import { useColorScheme } from 'react-native';
 import Colors from '../../constants/Colors';
 import { useTheme } from '../../context/ThemeContext';
 import { SafetyTip, getRandomSafetyTips } from '../../data/safetyTips';
-import { 
-  AlertTriangle, 
-  Flame, 
-  Heart, 
-  LogOut, 
-  Shield, 
-  ChevronLeft, 
-  ChevronRight 
-} from '@expo/vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 
 interface SafetyTipsCarouselProps {
   numTipsToShow?: number;
@@ -104,36 +96,29 @@ export default function SafetyTipsCarousel({
   const getCategoryIcon = (category: SafetyTip['category'], size: number = 24) => {
     switch (category) {
       case 'fire':
-        return <Flame size={size} color={colors.error} />;
+        return <Feather name="zap" size={size} color={colors.error} />; // Changed from "flame" to "zap"
       case 'emergency':
-        return <AlertTriangle size={size} color={colors.warning} />;
+        return <Feather name="alert-triangle" size={size} color={colors.warning} />;
       case 'first_aid':
-        return <Heart size={size} color={colors.error} />;
+        return <Feather name="heart" size={size} color={colors.error} />;
       case 'evacuation':
-        return <LogOut size={size} color={colors.info} />;
+        return <Feather name="log-out" size={size} color={colors.info} />;
       case 'prevention':
-        return <Shield size={size} color={colors.success} />;
+        return <Feather name="shield" size={size} color={colors.success} />;
       default:
-        return <AlertTriangle size={size} color={colors.warning} />;
+        return <Feather name="info" size={size} color={colors.info} />;
     }
   };
 
-  // Navigate to previous tip
+  // Navigation functions
   const goToPrevious = () => {
-    if (currentIndex > 0) {
-      scrollToIndex(currentIndex - 1);
-    } else {
-      scrollToIndex(tips.length - 1); // Loop to the end
-    }
+    const prevIndex = currentIndex === 0 ? tips.length - 1 : currentIndex - 1;
+    scrollToIndex(prevIndex);
   };
 
-  // Navigate to next tip
   const goToNext = () => {
-    if (currentIndex < tips.length - 1) {
-      scrollToIndex(currentIndex + 1);
-    } else {
-      scrollToIndex(0); // Loop to the start
-    }
+    const nextIndex = (currentIndex + 1) % tips.length;
+    scrollToIndex(nextIndex);
   };
 
   // Render pagination dots
@@ -173,7 +158,7 @@ export default function SafetyTipsCarousel({
             style={[styles.navButton, { backgroundColor: colors.card, left: 0 }]}
             onPress={goToPrevious}
           >
-            <ChevronLeft size={20} color={colors.text} />
+            <Feather name="chevron-left" size={20} color={colors.text} />
           </TouchableOpacity>
         )}
 
@@ -226,7 +211,7 @@ export default function SafetyTipsCarousel({
             style={[styles.navButton, { backgroundColor: colors.card, right: 0 }]}
             onPress={goToNext}
           >
-            <ChevronRight size={20} color={colors.text} />
+            <Feather name="chevron-right" size={20} color={colors.text} />
           </TouchableOpacity>
         )}
       </View>
@@ -274,8 +259,8 @@ const styles = StyleSheet.create({
   },
   cardCategory: {
     fontSize: 10,
-    fontWeight: '500',
-    marginLeft: 8,
+    fontWeight: '600',
+    marginLeft: 6,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -288,30 +273,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  navButton: {
+    position: 'absolute',
+    zIndex: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 3,
+  },
   dotsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
-    height: 8,
   },
   dot: {
     height: 8,
     borderRadius: 4,
     marginHorizontal: 3,
   },
-  navButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'absolute',
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 3,
-  },
-}); 
+});

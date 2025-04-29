@@ -13,6 +13,7 @@ import { useNotifications } from '../../src/hooks/useNotifications';
 import { NotificationType, NotificationData } from '../../src/services/notificationService';
 import Button from '../../src/components/ui/Button';
 import { formatDistanceToNow } from 'date-fns';
+import { useAuth } from '../../src/context/AuthContext';
 
 export default function NotificationsScreen() {
   const styles = StyleSheet.create({
@@ -144,10 +145,12 @@ export default function NotificationsScreen() {
       minWidth: 120,
     },
   });
+
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
-  
+  const { user } = useAuth();
+
   const { 
     notifications, 
     unreadCount, 
@@ -201,7 +204,13 @@ export default function NotificationsScreen() {
       router.push(`/report/details/${notification.data.incidentId}`);
     } else if (notification.data?.emergencyId) {
       // Update if you have a specific emergency detail screen
-     
+      router.push(`/emergency/${notification.data.emergencyId}`);
+    } else {
+      // Default fallback
+      console.log('No specific route for this notification type');
+    }
+  };
+
   const getFilteredNotifications = useMemo(() => {
     if (filter === 'all') return notifications;
     return notifications.filter(notification => notification.type === filter);
@@ -446,5 +455,3 @@ function NotificationCard({
     </TouchableOpacity>
   );
 }
-
-  }}

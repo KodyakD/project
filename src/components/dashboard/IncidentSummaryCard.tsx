@@ -3,14 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import Colors from '../../constants/Colors';
-import {
-  AlertTriangle,
-  Clock,
-  MapPin,
-  ChevronRight,
-  User,
-  AlertCircle,
-} from '@expo/vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import Card, { CardHeader, CardContent, CardFooter } from '../ui/Card';
 
 export type IncidentSummary = {
@@ -120,15 +113,15 @@ export default function IncidentSummaryCard({
   const getSeverityIcon = () => {
     switch (incident.severity) {
       case 'low':
-        return <AlertCircle size={16} color={getSeverityColor()} />;
+        return <Feather name="info" size={16} color={getSeverityColor()} />;
       case 'medium':
-        return <AlertTriangle size={16} color={getSeverityColor()} />;
+        return <Feather name="alert-triangle" size={16} color={getSeverityColor()} />;
       case 'high':
-        return <AlertTriangle size={16} color={getSeverityColor()} />;
+        return <Feather name="alert-triangle" size={16} color={getSeverityColor()} />;
       case 'critical':
-        return <AlertCircle size={16} color={getSeverityColor()} />;
+        return <Feather name="alert-circle" size={16} color={getSeverityColor()} />;
       default:
-        return <AlertCircle size={16} color={getSeverityColor()} />;
+        return <Feather name="info" size={16} color={getSeverityColor()} />;
     }
   };
 
@@ -174,7 +167,7 @@ export default function IncidentSummaryCard({
           {/* Location and Time Info */}
           <View style={styles.detailsContainer}>
             <View style={styles.detailItem}>
-              <MapPin size={14} color={colors.textSecondary} style={styles.detailIcon} />
+              <Feather name="map-pin" size={14} color={colors.textSecondary} style={styles.detailIcon} />
               <Text style={[styles.detailText, { color: colors.textSecondary }]} numberOfLines={1}>
                 {incident.building ? `${incident.building}, ` : ''}
                 {incident.location}
@@ -183,7 +176,7 @@ export default function IncidentSummaryCard({
             </View>
             
             <View style={styles.detailItem}>
-              <Clock size={14} color={colors.textSecondary} style={styles.detailIcon} />
+              <Feather name="clock" size={14} color={colors.textSecondary} style={styles.detailIcon} />
               <Text style={[styles.detailText, { color: colors.textSecondary }]}>
                 {formattedDate()}
               </Text>
@@ -200,7 +193,7 @@ export default function IncidentSummaryCard({
                 />
               ) : (
                 <View style={[styles.avatarPlaceholder, { backgroundColor: colors.border }]}>
-                  <User size={14} color={colors.textSecondary} />
+                  <Feather name="user" size={14} color={colors.textSecondary} />
                 </View>
               )}
               
@@ -227,7 +220,7 @@ export default function IncidentSummaryCard({
               onPress={handlePress}
             >
               <Text style={[styles.footerButtonText, { color: colors.primary }]}>View Details</Text>
-              <ChevronRight size={16} color={colors.primary} />
+              <Feather name="chevron-right" size={16} color={colors.primary} />
             </TouchableOpacity>
           </CardFooter>
         )}
@@ -338,4 +331,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginRight: 4,
   },
-}); 
+});

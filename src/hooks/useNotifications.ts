@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import notificationService, { NotificationData, NOTIFICATION_TOPICS } from '../services/notificationService';
-import { useAuthContext } from '../context/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Custom hook for handling notifications in the app
@@ -12,7 +12,7 @@ export function useNotifications() {
   const [loading, setLoading] = useState<boolean>(true);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const router = useRouter();
-  const { user, isAuthenticated } = useAuthContext();
+  const { user } = useAuth();
 
   /**
    * Initialize the notification service
@@ -33,7 +33,7 @@ export function useNotifications() {
       await checkPendingNavigation();
       
       // Subscribe to relevant topics based on user role
-      if (isAuthenticated && user) {
+      if (user) {
         // All users get general announcements
         await notificationService.subscribeToTopic(NOTIFICATION_TOPICS.GENERAL_ANNOUNCEMENTS);
         
@@ -57,7 +57,7 @@ export function useNotifications() {
     } finally {
       setLoading(false);
     }
-  }, [isAuthenticated, user, isInitialized]);
+  }, [user, isInitialized]);
 
   /**
    * Load notifications from storage
@@ -201,10 +201,10 @@ export function useNotifications() {
 
   // Initialize notifications when auth state changes
   useEffect(() => {
-    if (isAuthenticated) {
+    if (user) {
       initialize();
     }
-  }, [isAuthenticated, initialize]);
+  }, [user, initialize]);
 
   // Refresh notification count every 60 seconds
   useEffect(() => {
@@ -233,4 +233,4 @@ export function useNotifications() {
   };
 }
 
-export default useNotifications; 
+export default useNotifications;

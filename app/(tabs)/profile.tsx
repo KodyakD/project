@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Image, TouchableOpacity, ScrollView, Switch } from 'react-native';
-import { useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -9,6 +8,8 @@ import Colors from '../../src/constants/Colors';
 import Card from '../../src/components/ui/Card';
 import { Loading } from '../../src/components/ui/Loading';
 import { ErrorDisplay } from '../../src/components/ui/ErrorDisplay';
+import { useAuth } from '../../src/context/AuthContext';
+import { useTheme } from '../../src/context/ThemeContext'; // Add this import
 
 // Mock user data
 const USER = {
@@ -143,16 +144,17 @@ const styles = StyleSheet.create({
 });
 
 export default function ProfileScreen() {
-  const colorScheme = useColorScheme();
-  const isDarkMode = colorScheme === 'dark';
-  const colors = Colors[colorScheme ?? 'light'];
+  const { theme, setTheme, colors, colorScheme } = useTheme();
   const router = useRouter();
+  const { logout } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [user, setUser] = useState(USER);
-  const [darkModeEnabled, setDarkModeEnabled] = useState(isDarkMode);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+
+  // Use current theme from context to determine if dark mode is enabled
+  const isDarkMode = theme === 'dark' || (theme === 'system' && colorScheme === 'dark');
   
   useEffect(() => {
     // Simulate loading user data
@@ -163,9 +165,14 @@ export default function ProfileScreen() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Handle dark mode toggle
+  const handleDarkModeToggle = (enabled: boolean) => {
+    // Set theme based on toggle state
+    setTheme(enabled ? 'dark' : 'light');
+  };
+
   const handleLogout = () => {
-    // Handle logout logic here
-    alert('Logout functionality would go here');
+    logout();
   };
 
   if (loading) {
@@ -223,8 +230,8 @@ export default function ProfileScreen() {
               <View style={styles.settingMain}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>Dark Mode</Text>
                 <Switch
-                  value={darkModeEnabled}
-                  onValueChange={setDarkModeEnabled}
+                  value={isDarkMode}
+                  onValueChange={handleDarkModeToggle}
                   trackColor={{ false: colors.border, true: colors.primary }}
                   thumbColor="#FFFFFF"
                 />

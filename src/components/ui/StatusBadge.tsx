@@ -1,75 +1,108 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import Colors from '../../constants/Colors';
-import { useColorScheme } from 'react-native';
+import { StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
-type StatusType = 'critical' | 'high' | 'medium' | 'low' | 'resolved';
+type StatusType = 'critical' | 'warning' | 'success' | 'info' | 'neutral';
 
-type Props = {
+interface StatusBadgeProps {
   status: StatusType;
+  label: string;
   size?: 'small' | 'medium' | 'large';
-  showText?: boolean;
-};
+  style?: ViewStyle;
+}
 
-const statusLabels: Record<StatusType, string> = {
-  critical: 'Critical',
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
-  resolved: 'Resolved',
-};
-
-export default function StatusBadge({ status, size = 'medium', showText = true }: Props) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+export default function StatusBadge({ 
+  status, 
+  label, 
+  size = 'medium',
+  style 
+}: StatusBadgeProps) {
+  const { colors, isDark } = useTheme();
   
-  const backgroundColor = Colors.status[status];
+  // Get background color based on status
+  const getBackgroundColor = () => {
+    const opacity = isDark ? '30' : '15';
+    
+    switch(status) {
+      case 'critical': return `${colors.critical}${opacity}`;
+      case 'warning': return `${colors.warning}${opacity}`;
+      case 'success': return `${colors.success}${opacity}`;
+      case 'info': return `${colors.info}${opacity}`;
+      case 'neutral': 
+      default: return `${colors.neutral}${opacity}`;
+    }
+  };
   
-  // Determine dot size based on the size prop
-  const dotSize = size === 'small' ? 8 : size === 'medium' ? 12 : 16;
+  // Get text/border color based on status
+  const getColor = () => {
+    switch(status) {
+      case 'critical': return colors.critical;
+      case 'warning': return colors.warning;
+      case 'success': return colors.success;
+      case 'info': return colors.info;
+      case 'neutral': 
+      default: return colors.neutral;
+    }
+  };
   
-  // Determine font size based on the size prop
-  const fontSize = size === 'small' ? 12 : size === 'medium' ? 14 : 16;
+  // Get size
+  const getSize = () => {
+    switch(size) {
+      case 'small': return {
+        paddingVertical: 2,
+        paddingHorizontal: 6,
+        borderRadius: 10,
+        fontSize: 10,
+      };
+      case 'large': return {
+        paddingVertical: 6,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        fontSize: 14,
+      };
+      default: return {
+        paddingVertical: 4,
+        paddingHorizontal: 8,
+        borderRadius: 12,
+        fontSize: 12,
+      };
+    }
+  };
+  
+  const sizeStyles = getSize();
   
   return (
-    <View style={styles.container}>
-      <View 
-        style={[
-          styles.dot, 
-          { 
-            backgroundColor, 
-            width: dotSize, 
-            height: dotSize,
-          }
-        ]} 
-      />
-      {showText && (
-        <Text 
-          style={[
-            styles.text, 
-            { 
-              color: colors.text,
-              fontSize,
-            }
-          ]}
-        >
-          {statusLabels[status]}
-        </Text>
-      )}
+    <View style={[
+      styles.badge,
+      {
+        backgroundColor: getBackgroundColor(),
+        borderColor: getColor(),
+        paddingVertical: sizeStyles.paddingVertical,
+        paddingHorizontal: sizeStyles.paddingHorizontal,
+        borderRadius: sizeStyles.borderRadius,
+      },
+      style
+    ]}>
+      <Text style={[
+        styles.text,
+        { 
+          color: getColor(),
+          fontSize: sizeStyles.fontSize,
+        }
+      ]}>
+        {label}
+      </Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dot: {
-    borderRadius: 50,
+  badge: {
+    alignSelf: 'flex-start',
+    borderWidth: 1,
   },
   text: {
-    fontFamily: 'Inter-Medium',
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });

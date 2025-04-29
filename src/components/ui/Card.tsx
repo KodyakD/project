@@ -1,38 +1,39 @@
-import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle, useColorScheme } from 'react-native';
-import Colors from '../../constants/Colors';
+import React from 'react';
+import { View, ViewStyle, StyleSheet } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
-type CardProps = {
-  children: ReactNode;
+interface CardProps {
+  children: React.ReactNode;
   style?: ViewStyle;
-  elevation?: number;
-  variant?: 'elevated' | 'outlined' | 'filled';
-};
+}
 
-type CardChildProps = {
-  children: ReactNode;
+interface CardHeaderProps {
+  children: React.ReactNode;
   style?: ViewStyle;
-};
+}
 
-export default function Card({ children, style, elevation = 2, variant = 'elevated' }: CardProps) {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+interface CardContentProps {
+  children: React.ReactNode;
+  style?: ViewStyle;
+}
 
-  // Get variant-specific styles
-  const variantStyle = getVariantStyle(variant, colors, colorScheme === 'dark');
+interface CardFooterProps {
+  children: React.ReactNode;
+  style?: ViewStyle;
+}
+
+export default function Card({ children, style }: CardProps) {
+  const { colors } = useTheme();
   
-  // Get shadow styles (only for elevated variant)
-  const shadowStyles = variant === 'elevated' 
-    ? getShadowStyles(elevation, colorScheme === 'dark') 
-    : {};
-
   return (
     <View
       style={[
         styles.card,
-        variantStyle,
-        shadowStyles,
-        style,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+        },
+        style
       ]}
     >
       {children}
@@ -40,25 +41,25 @@ export default function Card({ children, style, elevation = 2, variant = 'elevat
   );
 }
 
-export function CardHeader({ children, style }: CardChildProps) {
-  return (
-    <View style={[styles.header, style]}>
-      {children}
-    </View>
-  );
+export function CardHeader({ children, style }: CardHeaderProps) {
+  return <View style={[styles.header, style]}>{children}</View>;
 }
 
-export function CardContent({ children, style }: CardChildProps) {
-  return (
-    <View style={[styles.content, style]}>
-      {children}
-    </View>
-  );
+export function CardContent({ children, style }: CardContentProps) {
+  return <View style={[styles.content, style]}>{children}</View>;
 }
 
-export function CardFooter({ children, style }: CardChildProps) {
+export function CardFooter({ children, style }: CardFooterProps) {
+  const { colors } = useTheme();
+  
   return (
-    <View style={[styles.footer, style]}>
+    <View 
+      style={[
+        styles.footer, 
+        { borderTopColor: colors.border },
+        style
+      ]}
+    >
       {children}
     </View>
   );
@@ -67,70 +68,22 @@ export function CardFooter({ children, style }: CardChildProps) {
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
-    marginVertical: 8,
+    borderWidth: 1,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   header: {
     padding: 16,
-    paddingBottom: 8,
   },
   content: {
     padding: 16,
   },
   footer: {
     padding: 16,
-    paddingTop: 8,
+    borderTopWidth: 1,
   },
 });
-
-// Helper function to get variant-specific styles
-function getVariantStyle(variant: CardProps['variant'], colors: any, isDark: boolean) {
-  switch (variant) {
-    case 'outlined':
-      return {
-        backgroundColor: colors.card,
-        borderWidth: 1,
-        borderColor: colors.border,
-      };
-    case 'filled':
-      return {
-        backgroundColor: isDark ? colors.surface : colors.input,
-        borderWidth: 0,
-      };
-    case 'elevated':
-    default:
-      return {
-        backgroundColor: colors.card,
-        borderWidth: 0,
-      };
-  }
-}
-
-// Helper function to calculate shadow styles based on elevation
-function getShadowStyles(elevation: number, isDark: boolean) {
-  if (isDark) {
-    // Dark mode - more subtle shadows
-    return {
-      shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: elevation,
-      },
-      shadowOpacity: 0.15,
-      shadowRadius: elevation * 1.5,
-      elevation: elevation,
-    };
-  } else {
-    // Light mode - standard shadows
-    return {
-      shadowColor: "#000",
-      shadowOffset: {
-        width: 0,
-        height: elevation,
-      },
-      shadowOpacity: 0.1,
-      shadowRadius: elevation * 1.5,
-      elevation: elevation,
-    };
-  }
-}

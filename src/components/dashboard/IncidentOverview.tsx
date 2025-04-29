@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import Colors from '../../constants/Colors';
 import Card, { CardHeader, CardContent, CardFooter } from '../ui/Card';
-import { ChevronRight, AlertCircle, AlertTriangle, CheckCircle } from '@expo/vector-icons/Feather';
+import { Feather } from '@expo/vector-icons';
 import { IncidentSummary } from './IncidentSummaryCard';
 import IncidentSummaryCard from './IncidentSummaryCard';
 
@@ -93,12 +93,36 @@ export default function IncidentOverview({
 
   // Handle view all incidents
   const handleViewAll = () => {
-    router.push('/report/incidents');
+    try {
+      if (!router) {
+        console.error('Router is undefined');
+        Alert.alert('Navigation Error', 'Navigation is currently unavailable. Please try again later.');
+        return;
+      }
+      
+      // Use correct navigation method
+      router.push('/(tabs)/incidents');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Unable to navigate to incidents. Please restart the app and try again.');
+    }
   };
-  
+
   // Handle incident selection
   const handleIncidentPress = (incident: IncidentSummary) => {
-    router.push(`/report/details/${incident.id}`);
+    try {
+      if (!router) {
+        console.error('Router is undefined');
+        Alert.alert('Navigation Error', 'Navigation is currently unavailable. Please try again later.');
+        return;
+      }
+      
+      // Use correct navigation method for dynamic routes
+      router.push(`/report/details/${incident.id}`);
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Unable to view incident details. Please restart the app and try again.');
+    }
   };
 
   // Render loading state
@@ -130,7 +154,7 @@ export default function IncidentOverview({
           </CardHeader>
         )}
         <CardContent style={styles.errorContainer}>
-          <AlertCircle size={32} color={colors.error} style={styles.errorIcon} />
+          <Feather name="alert-circle" size={32} color={colors.error} style={styles.errorIcon} />
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           <TouchableOpacity 
             style={[styles.retryButton, { backgroundColor: colors.primary }]}
@@ -153,7 +177,7 @@ export default function IncidentOverview({
           </CardHeader>
         )}
         <CardContent style={styles.emptyContainer}>
-          <CheckCircle size={32} color={colors.success} style={styles.emptyIcon} />
+          <Feather name="check-circle" size={32} color={colors.success} style={styles.emptyIcon} />
           <Text style={[styles.emptyTitle, { color: colors.success }]}>All Clear</Text>
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             No active incidents at this time
@@ -233,7 +257,7 @@ export default function IncidentOverview({
             <Text style={[styles.footerButtonText, { color: colors.primary }]}>
               View All Incidents
             </Text>
-            <ChevronRight size={16} color={colors.primary} />
+            <Feather name="chevron-right" size={16} color={colors.primary} />
           </TouchableOpacity>
         </CardFooter>
       )}

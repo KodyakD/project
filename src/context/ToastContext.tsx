@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react-native';
 import { useTheme } from './ThemeContext';
 
@@ -15,55 +14,59 @@ import { useTheme } from './ThemeContext';
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 export interface ToastOptions {
-  type?: ToastType;
   message: string;
   description?: string;
+  type?: ToastType;
   duration?: number;
-  onClose?: () => void;
   position?: 'top' | 'bottom';
   action?: {
     text: string;
     onPress: () => void;
   };
+  onClose?: () => void;
 }
 
 // Context
 interface ToastContextType {
   showToast: (options: ToastOptions) => void;
-  hideToast: () => void;
+  hideToast: (callback?: () => void) => void;
 }
 
 const ToastContext = createContext<ToastContextType | null>(null);
 
-export const useToast = () => useContext(ToastContext);
+export const useToast = () => {
+  const context = useContext(ToastContext);
+  if (!context) {
+    throw new Error('useToast must be used within a ToastProvider');
+  }
+  return context;
+};
 
 // Provider Component
 export const ToastProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
   const [visible, setVisible] = useState(false);
-  const [options, setOptions] = useState<ToastOptions>({
+  const [options, setOptions] = useState<ToastOptions>({ 
     message: '',
     type: 'info',
-    duration: 3000,
-    position: 'top',
+    duration: 3000
   });
   
-  const { colors } = useTheme();
-  const insets = useSafeAreaInsets();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(
-    new Animated.Value(options.position === 'top' ? -100 : 100)
-  ).current;
+  // Fixed insets that work on most devices rather than using useSafeAreaInsets
+  const FIXED_INSETS = { top: 50, bottom: 34 };
+  
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  
+  const { colors } = useTheme();
+  
   const showToast = (newOptions: ToastOptions) => {
-    // Cancel any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
     }
 
-    // If toast is already visible, hide it first
     if (visible) {
       hideToast(() => {
         setTimeout(() => {
@@ -76,20 +79,16 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const displayToast = (newOptions: ToastOptions) => {
-    // Update options
     const mergedOptions = {
       ...options,
       ...newOptions,
     };
     setOptions(mergedOptions);
-    
-    // Reset animation values
+
     slideAnim.setValue(mergedOptions.position === 'top' ? -100 : 100);
-    
-    // Show the toast
+
     setVisible(true);
-    
-    // Animate in
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -102,8 +101,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
         useNativeDriver: true,
       }),
     ]).start();
-    
-    // Auto-hide after duration if set
+
     if (mergedOptions.duration && mergedOptions.duration > 0) {
       timeoutRef.current = setTimeout(() => {
         hideToast();
@@ -112,13 +110,11 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
   };
 
   const hideToast = (callback?: () => void) => {
-    // Cancel any existing timeout
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
-    
-    // Animate out
+
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -136,57 +132,18 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
       callback?.();
     });
   };
-
-  const getToastIcon = () => {
-    const iconSize = 20;
-    const iconColor = getToastColor();
-    
-    switch (options.type) {
-      case 'success':
-        return <CheckCircle size={iconSize} color={iconColor} />;
-      case 'error':
-        return <AlertCircle size={iconSize} color={iconColor} />;
-      case 'warning':
-        return <AlertTriangle size={iconSize} color={iconColor} />;
-      case 'info':
-      default:
-        return <Info size={iconSize} color={iconColor} />;
-    }
-  };
   
-  const getToastColor = () => {
-    switch (options.type) {
-      case 'success':
-        return colors.success;
-      case 'error':
-        return colors.error;
-      case 'warning':
-        return colors.warning;
-      case 'info':
-      default:
-        return colors.info;
-    }
-  };
-
-  const getToastBackgroundColor = () => {
-    const baseColor = getToastColor();
-    // Create a lighter version for the background
-    return Platform.OS === 'ios' 
-      ? `${baseColor}15` // 15% opacity (iOS)
-      : `${baseColor}10`; // 10% opacity (Android)
-  };
-
   return (
     <ToastContext.Provider value={{ showToast, hideToast }}>
       {children}
       
       {visible && (
-        <View 
+        <View
           style={[
-            styles.safeArea, 
-            options.position === 'top' 
-              ? { top: insets.top } 
-              : { bottom: insets.bottom }
+            styles.safeArea,
+            options.position === 'top'
+              ? { top: FIXED_INSETS.top }
+              : { bottom: FIXED_INSETS.bottom },
           ]}
           pointerEvents="box-none"
         >
@@ -199,24 +156,24 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
                 transform: [{ translateY: slideAnim }],
                 opacity: fadeAnim,
               },
-              options.position === 'top' 
-                ? styles.containerTop 
+              options.position === 'top'
+                ? styles.containerTop
                 : styles.containerBottom,
             ]}
           >
             <View style={styles.iconContainer}>{getToastIcon()}</View>
-            
+
             <View style={styles.contentContainer}>
               <Text style={[styles.message, { color: colors.text }]}>
                 {options.message}
               </Text>
-              
+
               {options.description && (
                 <Text style={[styles.description, { color: colors.textSecondary }]}>
                   {options.description}
                 </Text>
               )}
-              
+
               {options.action && (
                 <TouchableOpacity
                   style={styles.actionButton}
@@ -231,7 +188,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
                 </TouchableOpacity>
               )}
             </View>
-            
+
             <TouchableOpacity style={styles.closeButton} onPress={() => hideToast()}>
               <X size={16} color={colors.textSecondary} />
             </TouchableOpacity>
@@ -240,6 +197,44 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
       )}
     </ToastContext.Provider>
   );
+  
+  function getToastIcon() {
+    const iconSize = 20;
+    const iconColor = getToastColor();
+
+    switch (options.type) {
+      case 'success':
+        return <CheckCircle size={iconSize} color={iconColor} />;
+      case 'error':
+        return <AlertCircle size={iconSize} color={iconColor} />;
+      case 'warning':
+        return <AlertTriangle size={iconSize} color={iconColor} />;
+      case 'info':
+      default:
+        return <Info size={iconSize} color={iconColor} />;
+    }
+  }
+
+  function getToastColor() {
+    switch (options.type) {
+      case 'success':
+        return colors.success;
+      case 'error':
+        return colors.error;
+      case 'warning':
+        return colors.warning;
+      case 'info':
+      default:
+        return colors.info;
+    }
+  }
+
+  function getToastBackgroundColor() {
+    const baseColor = getToastColor();
+    return Platform.OS === 'ios' 
+      ? `${baseColor}15` 
+      : `${baseColor}10`;
+  }
 };
 
 const styles = StyleSheet.create({

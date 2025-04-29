@@ -97,14 +97,6 @@ export default function Dashboard() {
           showControls={true}
         />
       </ScrollView>
-      
-      {/* Floating Action Button */}
-      <FloatingActionButton 
-        icon={<Plus size={24} color="#FFFFFF" />}
-        onPress={() => router.push('/report/incident')}
-        label="Report Incident"
-        color={colors.emergencyRed}
-      />
     </SafeAreaView>
   );
 }

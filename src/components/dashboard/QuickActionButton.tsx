@@ -1,11 +1,10 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, Text, ViewStyle } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import Colors from '../../constants/Colors';
-import { LinearGradient } from 'expo-linear-gradient';
 
-type QuickActionButtonProps = {
+interface QuickActionButtonProps {
   title: string;
   icon: React.ReactNode;
   route?: string;
@@ -13,49 +12,54 @@ type QuickActionButtonProps = {
   color?: string;
   gradient?: string[];
   badge?: number | string;
+  disabled?: boolean;
   size?: 'small' | 'medium' | 'large';
   style?: ViewStyle;
-  disabled?: boolean;
-  testID?: string;
-  textStyle?: TextStyle;
-};
+}
 
 export default function QuickActionButton({
   title,
   icon,
   route,
   onPress,
-  color,
+  color = '#007AFF',
   gradient,
   badge,
+  disabled = false,
   size = 'medium',
   style,
-  disabled = false,
-  testID,
-  textStyle,
 }: QuickActionButtonProps) {
   const router = useRouter();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   
-  // Calculate size based on prop
-  const getSize = () => {
+  // Determine sizes based on the size prop
+  const getSizes = () => {
     switch (size) {
       case 'small':
-        return { width: 80, height: 80, iconSize: 24 };
-      case 'medium':
-        return { width: 110, height: 110, iconSize: 32 };
+        return {
+          button: { width: 80, height: 80 },
+          icon: { width: 40, height: 40 },
+          title: { fontSize: 12 },
+        };
       case 'large':
-        return { width: 140, height: 140, iconSize: 40 };
+        return {
+          button: { width: 120, height: 120 },
+          icon: { width: 60, height: 60 },
+          title: { fontSize: 16 },
+        };
+      case 'medium':
       default:
-        return { width: 110, height: 110, iconSize: 32 };
+        return {
+          button: { width: 100, height: 100 },
+          icon: { width: 50, height: 50 },
+          title: { fontSize: 14 },
+        };
     }
   };
-  
-  const { width, height, iconSize } = getSize();
-  const buttonColor = color || colors.primary;
 
-  // Handle button press
+  const sizes = getSizes();
+  
   const handlePress = () => {
     if (disabled) return;
     
@@ -66,123 +70,87 @@ export default function QuickActionButton({
     }
   };
 
+  // Safely render the icon
+  const renderIcon = () => {
+    if (!icon) {
+      return null;
+    }
+    
+    return (
+      <View style={[styles.iconContainer, sizes.icon, { backgroundColor: color + '15' }]}>
+        {icon}
+      </View>
+    );
+  };
+  
   return (
-    <TouchableOpacity 
-      style={[
-        styles.container,
-        { width, height },
-        disabled && styles.disabled,
-        style
-      ]}
+    <TouchableOpacity
+      style={[styles.button, sizes.button, style, disabled && styles.disabled]}
       onPress={handlePress}
       activeOpacity={0.7}
       disabled={disabled}
-      testID={testID}
     >
-      {gradient ? (
-        <LinearGradient
-          colors={gradient}
-          style={styles.gradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-        >
-          <View style={styles.inner}>
-            <View style={styles.iconContainer}>
-              {icon}
-            </View>
-            <Text 
-              style={[
-                styles.title, 
-                { color: colors.white },
-                textStyle
-              ]}
-              numberOfLines={2}
-            >
-              {title}
-            </Text>
-          </View>
-        </LinearGradient>
-      ) : (
-        <View 
-          style={[
-            styles.inner, 
-            { 
-              backgroundColor: buttonColor + '15', // 15% opacity
-              borderColor: buttonColor
-            }
-          ]}
-        >
-          <View style={styles.iconContainer}>
-            {icon}
-          </View>
-          <Text 
-            style={[
-              styles.title, 
-              { color: buttonColor },
-              textStyle
-            ]}
-            numberOfLines={2}
-          >
-            {title}
-          </Text>
-        </View>
-      )}
+      {renderIcon()}
       
-      {badge !== undefined && badge !== null && (
-        <View style={[styles.badge, { backgroundColor: colors.critical }]}>
+      <Text 
+        style={[
+          styles.title, 
+          sizes.title, 
+          { 
+            color: colors.text,
+            opacity: disabled ? 0.5 : 1 
+          }
+        ]}
+        numberOfLines={2}
+      >
+        {title}
+      </Text>
+      
+      {badge ? (
+        <View style={[styles.badge, { backgroundColor: color || colors.primary }]}>
           <Text style={styles.badgeText}>
             {typeof badge === 'number' && badge > 99 ? '99+' : badge}
           </Text>
         </View>
-      )}
+      ) : null}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    borderRadius: 16,
-    overflow: 'hidden',
-    margin: 8,
-  },
-  gradient: {
-    flex: 1,
-    borderRadius: 16,
-  },
-  inner: {
-    flex: 1,
-    justifyContent: 'center',
+  button: {
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: 'transparent',
+    justifyContent: 'center',
+    padding: 8,
+    borderRadius: 12,
+  },
+  disabled: {
+    opacity: 0.6,
   },
   iconContainer: {
-    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    marginBottom: 8,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '600',
     textAlign: 'center',
+    fontWeight: '500',
   },
   badge: {
     position: 'absolute',
-    top: -6,
-    right: -6,
+    top: 0,
+    right: 0,
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   badgeText: {
     color: 'white',
     fontSize: 10,
     fontWeight: 'bold',
   },
-  disabled: {
-    opacity: 0.5,
-  },
-}); 
+});

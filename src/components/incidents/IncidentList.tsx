@@ -57,6 +57,26 @@ interface IncidentListProps {
   isUserIncidents?: boolean;
 }
 
+// Add this helper function somewhere in your component
+const safelyFormatDate = (dateValue: any) => {
+  try {
+    // Make sure we have a valid date
+    const date = dateValue instanceof Date 
+      ? dateValue 
+      : new Date(dateValue);
+      
+    // Check if date is valid before formatting
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return format(date, 'MMM d, yyyy • h:mm a');
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
+
 export const IncidentList: React.FC<IncidentListProps> = ({
   onSelectIncident,
   initialFilters = {},
@@ -118,11 +138,24 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   useEffect(() => {
     fetchIncidents();
     
-    // Optional: Set up real-time updates subscription
-    const unsubscribe = incidentService.subscribeToIncidents((updatedIncidents) => {
-      setIncidents(updatedIncidents);
-      applyFilters(updatedIncidents, filters);
-    });
+    // Set up real-time updates subscription
+    let unsubscribe: (() => void) | null = null;
+    
+    try {
+      // Use the Firebase subscription
+      unsubscribe = incidentService.subscribeToIncidents((updatedIncidents) => {
+        // Make sure we don't cause an infinite loop
+        console.log("Received real-time update with", updatedIncidents.length, "incidents");
+        
+        // Only update if we have data and it's different
+        if (updatedIncidents && updatedIncidents.length > 0) {
+          setIncidents(updatedIncidents);
+          applyFilters(updatedIncidents, filters);
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+    }
     
     // Cleanup subscription on unmount
     return () => {
@@ -263,7 +296,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
           
           <View style={styles.incidentMeta}>
             <Text style={[styles.incidentDate]}>
-              {format(new Date(item.reportedAt), 'MMM d, yyyy • h:mm a')}
+              {safelyFormatDate(item.reportedAt)}
             </Text>
           </View>
         </View>

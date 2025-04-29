@@ -1,6 +1,18 @@
 import { collection, doc, getDoc, getDocs, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { FloorType } from '@/types/map.types';
+import { Asset } from 'expo-asset';
+import * as FileSystem from 'expo-file-system';
+import { BUILDING_MAP_CONFIG } from './buildingMapConfig';
+
+// Map between floor IDs and asset paths
+const MAP_ASSETS = {
+  'rdc': require('@/assets/maps/floor-rdc.svg'),
+  '1er': require('@/assets/maps/floor-1er.svg'),
+  '2eme': require('@/assets/maps/floor-2eme.svg'),
+  '3eme': require('@/assets/maps/floor-3eme.svg'),
+  '4eme': require('@/assets/maps/floor-4eme.svg'),
+};
 
 // Collection reference
 const floorMapsCollection = collection(db, 'floorMaps');
@@ -210,45 +222,103 @@ export const fetchBuildingById = async (buildingId: string): Promise<Building | 
 };
 
 /**
+ * Parse floorMapId to get the floor part
+ */
+const parseFloorMapId = (floorMapId: string): { buildingId: string, floorId: FloorType } => {
+  // Handle format like "main-building-rdc"
+  const parts = floorMapId.split('-');
+  const floorId = parts.pop() as FloorType; // Get the last part (rdc)
+  const buildingId = parts.join('-'); // Rejoin the rest (main-building)
+  
+  return { buildingId, floorId };
+};
+
+/**
  * Fetch a floor map by ID
  */
 export const fetchFloorMap = async (floorMapId: string): Promise<FloorMap> => {
   try {
+    // First, try to get from Firebase
     const docRef = doc(db, 'floorMaps', floorMapId);
     const docSnap = await getDoc(docRef);
     
-    if (!docSnap.exists()) {
-      throw new Error(`Floor map with ID ${floorMapId} not found`);
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        name: data.name,
+        mapSvg: data.mapSvg,
+        width: data.width,
+        height: data.height,
+        buildingId: data.buildingId,
+        floor: data.floor,
+        sensorPoints: [] // You can load these separately
+      };
+    } else {
+      // Document doesn't exist - handle local files instead for development
+      console.log(`Floor map ${floorMapId} not found in Firebase, using local file`);
+      
+      // Parse the floor ID from the floorMapId (e.g., "main-building-rdc" -> "rdc")
+      const { buildingId, floorId } = parseFloorMapId(floorMapId);
+      
+      if (!floorId || !MAP_ASSETS[floorId]) {
+        console.error(`No local asset found for floor ${floorId}. Available floors:`, Object.keys(MAP_ASSETS));
+        
+        // Use a default floor as fallback if requested one isn't available
+        const defaultFloorId = 'rdc';
+        console.log(`Using default floor: ${defaultFloorId}`);
+        
+        // Get default floor asset
+        const asset = Asset.fromModule(MAP_ASSETS[defaultFloorId]);
+        await asset.downloadAsync();
+        
+        if (!asset.localUri) {
+          throw new Error('Failed to load default map asset');
+        }
+        
+        // Read the default SVG content
+        const svgContent = await FileSystem.readAsStringAsync(asset.localUri);
+        
+        return {
+          id: floorMapId,
+          name: `Default Floor (${defaultFloorId.toUpperCase()})`,
+          mapSvg: svgContent,
+          width: 1000,
+          height: 800,
+          buildingId: buildingId,
+          floor: 0,
+          sensorPoints: []
+        };
+      }
+      
+      // Load the SVG file
+      try {
+        const asset = Asset.fromModule(MAP_ASSETS[floorId]);
+        await asset.downloadAsync();
+        
+        if (!asset.localUri) {
+          throw new Error('Failed to load local map asset');
+        }
+        
+        // Read the SVG content
+        const svgContent = await FileSystem.readAsStringAsync(asset.localUri);
+        
+        // Return mock map data
+        return {
+          id: floorMapId,
+          name: `${floorId.toUpperCase()} Floor`,
+          mapSvg: svgContent,
+          width: 1000, // Default width
+          height: 800, // Default height
+          buildingId: buildingId,
+          floor: floorId === 'rdc' ? 0 : parseInt(floorId.replace(/[^\d]/g, ''), 10),
+          sensorPoints: [] // Mock sensors could be added here
+        };
+      } catch (assetError) {
+        console.error('Error loading map asset:', assetError);
+        throw new Error(`Failed to load floor map: ${assetError.message}`);
+      }
     }
-    
-    const data = docSnap.data();
-    
-    // Fetch sensor points for this floor map
-    const sensorsQuery = query(
-      collection(db, 'mapSensorPoints'),
-      where('floorMapId', '==', floorMapId)
-    );
-    
-    const sensorSnapshot = await getDocs(sensorsQuery);
-    const sensorPoints: FloorMapSensorPoint[] = [];
-    
-    sensorSnapshot.forEach(doc => {
-      sensorPoints.push({
-        id: doc.id,
-        ...doc.data()
-      } as FloorMapSensorPoint);
-    });
-    
-    return {
-      id: docSnap.id,
-      name: data.name,
-      mapSvg: data.mapSvg,
-      width: data.width,
-      height: data.height,
-      buildingId: data.buildingId,
-      floor: data.floor,
-      sensorPoints
-    };
   } catch (error) {
     console.error('Error fetching floor map:', error);
     throw error;
@@ -358,4 +428,4 @@ export const fetchFloorMapSensorPoints = async (floorMapId: string): Promise<Flo
     console.error('Error fetching floor map sensor points:', error);
     throw error;
   }
-}; 
+};

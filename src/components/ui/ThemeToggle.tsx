@@ -1,86 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
-  Pressable, 
-  StyleSheet,
-  View,
-  Text,
-  Modal,
-  TouchableOpacity
+  StyleSheet, 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Modal, 
+  Pressable 
 } from 'react-native';
 import { Sun, Moon, Monitor } from 'lucide-react-native';
-import Animated, {
-  useAnimatedStyle,
-  withTiming,
-  withSequence,
-  withDelay,
-  Easing,
-} from 'react-native-reanimated';
-import { useTheme, ThemeType } from '../../context/ThemeContext';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function ThemeToggle() {
-  const { theme, isDark, colors, setTheme } = useTheme();
-  const [modalVisible, setModalVisible] = React.useState(false);
-  
-  const iconStyle = useAnimatedStyle(() => {
-    return {
-      transform: [
-        {
-          rotate: withSequence(
-            withTiming('0deg', { duration: 0 }),
-            withDelay(
-              150,
-              withTiming(isDark ? '360deg' : '-360deg', {
-                duration: 300,
-                easing: Easing.bezier(0.4, 0, 0.2, 1),
-              })
-            )
-          ),
-        },
-        {
-          scale: withSequence(
-            withTiming(0.8, { duration: 150 }),
-            withTiming(1, { duration: 150 })
-          ),
-        },
-      ],
-      opacity: withSequence(
-        withTiming(0.5, { duration: 150 }),
-        withTiming(1, { duration: 150 })
-      ),
-    };
-  });
-
-  const containerStyle = useAnimatedStyle(() => {
-    return {
-      backgroundColor: withTiming(
-        isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-        { duration: 200 }
-      ),
-    };
-  });
-
-  const toggleModal = () => {
-    setModalVisible(!modalVisible);
-  };
-
-  const handleThemeChange = (newTheme: ThemeType) => {
-    setTheme(newTheme);
-    setModalVisible(false);
-  };
+  const { theme, colors, setTheme } = useTheme();
+  const [modalVisible, setModalVisible] = useState(false);
 
   return (
     <>
-      <Pressable onPress={toggleModal}>
-        <Animated.View style={[styles.container, containerStyle]}>
-          <Animated.View style={iconStyle}>
-            {isDark ? (
-              <Moon size={20} color={colors.text} />
-            ) : (
-              <Sun size={20} color={colors.text} />
-            )}
-          </Animated.View>
-        </Animated.View>
-      </Pressable>
+      <TouchableOpacity 
+        style={[styles.iconButton, { backgroundColor: colors.card }]} 
+        onPress={() => setModalVisible(true)}
+      >
+        {theme === 'dark' ? (
+          <Moon size={20} color={colors.text} />
+        ) : theme === 'light' ? (
+          <Sun size={20} color={colors.text} />
+        ) : (
+          <Monitor size={20} color={colors.text} />
+        )}
+      </TouchableOpacity>
 
       <Modal
         animationType="fade"
@@ -89,34 +36,28 @@ export default function ThemeToggle() {
         onRequestClose={() => setModalVisible(false)}
       >
         <Pressable 
-          style={styles.modalBackdrop}
+          style={styles.modalOverlay} 
           onPress={() => setModalVisible(false)}
         >
-          <View 
-            style={[
-              styles.modalContent, 
-              { backgroundColor: colors.cardBackground }
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Choose Theme
-            </Text>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Theme</Text>
             
             <TouchableOpacity
               style={[
                 styles.themeOption,
-                theme === 'light' && styles.selectedOption,
-                { borderColor: theme === 'light' ? colors.tint : colors.border }
+                { borderColor: colors.border },
+                theme === 'light' && [styles.selectedOption, { borderColor: colors.primary }],
               ]}
-              onPress={() => handleThemeChange('light')}
+              onPress={() => {
+                setTheme('light');
+                setModalVisible(false);
+              }}
             >
-              <Sun size={20} color={theme === 'light' ? colors.tint : colors.text} />
-              <Text 
-                style={[
-                  styles.themeOptionText, 
-                  { color: theme === 'light' ? colors.tint : colors.text }
-                ]}
-              >
+              <Sun size={20} color={theme === 'light' ? colors.primary : colors.text} />
+              <Text style={[
+                styles.optionText, 
+                { color: theme === 'light' ? colors.primary : colors.text }
+              ]}>
                 Light
               </Text>
             </TouchableOpacity>
@@ -124,18 +65,19 @@ export default function ThemeToggle() {
             <TouchableOpacity
               style={[
                 styles.themeOption,
-                theme === 'dark' && styles.selectedOption,
-                { borderColor: theme === 'dark' ? colors.tint : colors.border }
+                { borderColor: colors.border },
+                theme === 'dark' && [styles.selectedOption, { borderColor: colors.primary }],
               ]}
-              onPress={() => handleThemeChange('dark')}
+              onPress={() => {
+                setTheme('dark');
+                setModalVisible(false);
+              }}
             >
-              <Moon size={20} color={theme === 'dark' ? colors.tint : colors.text} />
-              <Text 
-                style={[
-                  styles.themeOptionText, 
-                  { color: theme === 'dark' ? colors.tint : colors.text }
-                ]}
-              >
+              <Moon size={20} color={theme === 'dark' ? colors.primary : colors.text} />
+              <Text style={[
+                styles.optionText, 
+                { color: theme === 'dark' ? colors.primary : colors.text }
+              ]}>
                 Dark
               </Text>
             </TouchableOpacity>
@@ -143,18 +85,19 @@ export default function ThemeToggle() {
             <TouchableOpacity
               style={[
                 styles.themeOption,
-                theme === 'system' && styles.selectedOption,
-                { borderColor: theme === 'system' ? colors.tint : colors.border }
+                { borderColor: colors.border },
+                theme === 'system' && [styles.selectedOption, { borderColor: colors.primary }],
               ]}
-              onPress={() => handleThemeChange('system')}
+              onPress={() => {
+                setTheme('system');
+                setModalVisible(false);
+              }}
             >
-              <Monitor size={20} color={theme === 'system' ? colors.tint : colors.text} />
-              <Text 
-                style={[
-                  styles.themeOptionText, 
-                  { color: theme === 'system' ? colors.tint : colors.text }
-                ]}
-              >
+              <Monitor size={20} color={theme === 'system' ? colors.primary : colors.text} />
+              <Text style={[
+                styles.optionText, 
+                { color: theme === 'system' ? colors.primary : colors.text }
+              ]}>
                 System
               </Text>
             </TouchableOpacity>
@@ -166,34 +109,34 @@ export default function ThemeToggle() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  iconButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalBackdrop: {
+  modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   modalContent: {
     width: '80%',
     borderRadius: 12,
     padding: 20,
-    alignItems: 'center',
-    elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
-    shadowRadius: 3.84,
+    shadowRadius: 4,
+    elevation: 5,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 16,
+    textAlign: 'center',
   },
   themeOption: {
     flexDirection: 'row',
@@ -202,14 +145,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginVertical: 6,
     borderWidth: 1,
-    width: '100%',
   },
   selectedOption: {
-    borderWidth: 2,
+    backgroundColor: 'rgba(225, 29, 72, 0.1)', // Emergency red with opacity
   },
-  themeOptionText: {
-    fontWeight: '500',
+  optionText: {
     marginLeft: 12,
     fontSize: 16,
+    fontWeight: '500',
   },
 });

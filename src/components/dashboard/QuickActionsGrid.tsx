@@ -4,16 +4,8 @@ import { useColorScheme } from 'react-native';
 import Colors from '../../constants/Colors';
 import QuickActionButton from './QuickActionButton';
 import Card from '../ui/Card';
-import { 
-  Map, 
-  Bell, 
-  AlertTriangle, 
-  Phone, 
-  FileText, 
-  User, 
-  Shield, 
-  Settings
-} from '@expo/vector-icons/Feather';
+// Change the import pattern for Feather icons
+import { Feather } from '@expo/vector-icons';
 
 export type QuickAction = {
   id: string;
@@ -44,40 +36,43 @@ export default function QuickActionsGrid({
   const colors = Colors[colorScheme ?? 'light'];
   const { width } = useWindowDimensions();
   
+  // Calculate item size based on grid columns and screen width
+  const itemSize = (width - 32 - (columns * 16)) / columns;
+  
   // Default actions if none provided
   const defaultActions: QuickAction[] = [
     {
-      id: 'map',
-      title: 'View Maps',
-      icon: <Map size={24} color={colors.primary} />,
+      id: 'maps',
+      title: 'Campus Map',
+      icon: <Feather name="map" size={24} color="#3772FF" />,
       route: '/maps',
-      color: colors.primary,
+      color: '#3772FF',
     },
     {
-      id: 'report',
-      title: 'Report Incident',
-      icon: <AlertTriangle size={24} color="#FF6B6B" />,
-      route: '/report/incident',
+      id: 'incidents',
+      title: 'Incidents',
+      icon: <Feather name="alert-triangle" size={24} color="#FF6B6B" />,
+      route: '/incidents',
       color: '#FF6B6B',
     },
     {
       id: 'emergency',
-      title: 'Emergency Contacts',
-      icon: <Phone size={24} color="#4ECDC4" />,
-      route: '/emergency-contacts',
-      color: '#4ECDC4',
+      title: 'Emergency',
+      icon: <Feather name="phone" size={24} color="#FF9F1C" />,
+      route: '/emergency',
+      color: '#FF9F1C',
     },
     {
       id: 'safety',
       title: 'Safety Plans',
-      icon: <Shield size={24} color="#FFD166" />,
+      icon: <Feather name="shield" size={24} color="#FFD166" />,
       route: '/safety-plans',
       color: '#FFD166',
     },
     {
       id: 'notifications',
       title: 'Notifications',
-      icon: <Bell size={24} color="#6A0572" />,
+      icon: <Feather name="bell" size={24} color="#6A0572" />,
       route: '/notifications',
       badge: 3,
       color: '#6A0572',
@@ -85,7 +80,7 @@ export default function QuickActionsGrid({
     {
       id: 'profile',
       title: 'My Profile',
-      icon: <User size={24} color="#F0C808" />,
+      icon: <Feather name="user" size={24} color="#F0C808" />,
       route: '/profile',
       color: '#F0C808',
     },
@@ -93,20 +88,12 @@ export default function QuickActionsGrid({
 
   const displayActions = actions || defaultActions;
   
-  // Calculate item size based on screen width and columns
-  const calculateItemSize = () => {
-    const padding = 32; // Total horizontal padding
-    const gap = 16 * (columns - 1); // Total gap between items
-    const availableWidth = width - padding - gap;
-    return availableWidth / columns;
-  };
-  
-  const itemSize = calculateItemSize();
-
-  // Render content with optional card wrapper
+  // Render content with or without title
   const renderContent = () => (
     <>
-      {title && <Text style={[styles.title, { color: colors.text }]}>{title}</Text>}
+      {title && (
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      )}
       <View style={styles.grid}>
         {displayActions.map((action) => (
           <QuickActionButton
@@ -141,10 +128,11 @@ export default function QuickActionsGrid({
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginBottom: 24,
   },
   card: {
-    marginVertical: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
     padding: 16,
   },
   title: {
@@ -156,6 +144,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    marginHorizontal: -8, // Offset item margins
   },
-}); 
+});

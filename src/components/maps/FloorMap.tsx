@@ -8,7 +8,7 @@ import Animated, {
   withTiming 
 } from 'react-native-reanimated';
 import { SvgXml } from 'react-native-svg';
-import { FloorMap as FloorMapType, fetchFloorMapById, fetchFloorMapSensorPoints } from '../../services/floorMapService';
+import { FloorMap as FloorMapType, fetchFloorMap, fetchFloorMapSensorPoints } from '../../services/floorMapService';
 import { SensorOverlay } from './SensorOverlay';
 import UserPositionLayer from './UserPositionLayer';
 import { FloorMapSensorPoint } from '../../services/floorMapService';
@@ -51,7 +51,7 @@ export const FloorMap: React.FC<FloorMapProps> = ({
     const loadFloorMap = async () => {
       try {
         setLoading(true);
-        const mapData = await fetchFloorMapById(floorMapId);
+        const mapData = await fetchFloorMap(floorMapId);
         if (mapData) {
           setFloorMap(mapData);
           const sensorData = await fetchFloorMapSensorPoints(floorMapId);

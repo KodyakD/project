@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Animated, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AlertTriangle, Plus } from '@expo/vector-icons/Feather';
-import { useColorScheme } from 'react-native';
-import Colors from '../../constants/Colors';
+import { AlertTriangle } from 'lucide-react-native';
+import { useTheme } from '../../context/ThemeContext';
 
 interface FloatingActionButtonProps {
   icon?: React.ReactNode;
@@ -25,8 +24,7 @@ export function FloatingActionButton({
   showLabel = true,
 }: FloatingActionButtonProps) {
   const router = useRouter();
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  const { colors } = useTheme();
   const [scaleAnim] = useState(new Animated.Value(1));
   
   // Button size based on size prop
@@ -42,10 +40,14 @@ export function FloatingActionButton({
   // Button position based on position prop
   const getButtonPosition = () => {
     switch (position) {
-      case 'bottomLeft': return { bottom: 20, left: 20 };
-      case 'bottomCenter': return { bottom: 20, alignSelf: 'center', left: Dimensions.get('window').width / 2 - getButtonSize() / 2 };
+      case 'bottomLeft': return { bottom: 80, left: 20 };
+      case 'bottomCenter': return { 
+        bottom: 80, 
+        alignSelf: 'center', 
+        left: Dimensions.get('window').width / 2 - getButtonSize() / 2 
+      };
       case 'bottomRight':
-      default: return { bottom: 20, right: 20 };
+      default: return { bottom: 80, right: 20 };
     }
   };
 
@@ -73,7 +75,7 @@ export function FloatingActionButton({
   };
 
   const buttonSize = getButtonSize();
-  const buttonColor = color || colors.critical;
+  const buttonColor = color || colors.emergencyRed;
 
   return (
     <View style={[styles.container, getButtonPosition()]}>

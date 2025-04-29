@@ -18,6 +18,7 @@ import { X, Camera, Flame, CloudFog, Wind, Building, TriangleAlert as AlertTrian
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Button from '../../src/components/ui/Button';
+import { useTheme } from '../../src/context/ThemeContext';
 
 // Mock building and floor data
 const buildings = [
@@ -44,14 +45,6 @@ const incidentTypes = [
   { id: 'other', name: 'Other', icon: AlertTriangle },
 ];
 
-// Severity levels
-const severityLevels = [
-  { id: 'low', name: 'Low', color: '#0EA5E9' },
-  { id: 'medium', name: 'Medium', color: '#F59E0B' },
-  { id: 'high', name: 'High', color: '#EA580C' },
-  { id: 'critical', name: 'Critical', color: '#DC2626' },
-];
-
 // Validation schema
 const ReportSchema = Yup.object().shape({
   incidentType: Yup.string().required('Please select an incident type'),
@@ -64,8 +57,16 @@ const ReportSchema = Yup.object().shape({
 });
 
 export default function ReportIncidentScreen() {
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
+  // Use ThemeContext instead of direct useColorScheme
+  const { colors, colorScheme } = useTheme();
+  
+  // Define severity levels using colors from the theme
+  const severityLevels = [
+    { id: 'low', name: 'Low', color: colors.success },
+    { id: 'medium', name: 'Medium', color: colors.warning },
+    { id: 'high', name: 'High', color: colors.error },
+    { id: 'critical', name: 'Critical', color: colors.critical },
+  ];
   
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 3;
@@ -109,7 +110,7 @@ export default function ReportIncidentScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]} edges={['top']}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -125,7 +126,7 @@ export default function ReportIncidentScreen() {
         </View>
         
         {/* Progress bar */}
-        <View style={styles.progressBarContainer}>
+        <View style={[styles.progressBarContainer, { backgroundColor: colorScheme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }]}>
           {Array(totalSteps).fill(0).map((_, index) => (
             <View 
               key={index}
@@ -133,8 +134,8 @@ export default function ReportIncidentScreen() {
                 styles.progressBarSegment,
                 { 
                   backgroundColor: currentStep > index 
-                    ? colors.tint 
-                    : 'rgba(100, 116, 139, 0.2)',
+                    ? colors.emergencyRed
+                    : 'transparent',
                   width: `${100 / totalSteps}%`,
                 }
               ]}
@@ -142,7 +143,7 @@ export default function ReportIncidentScreen() {
           ))}
         </View>
         
-        <Text style={[styles.stepText, { color: colors.neutral }]}>
+        <Text style={[styles.stepText, { color: colors.textSecondary }]}>
           Step {currentStep} of {totalSteps}
         </Text>
         
@@ -171,7 +172,7 @@ export default function ReportIncidentScreen() {
             <>
               <ScrollView 
                 style={{ flex: 1 }}
-                contentContainerStyle={styles.formContainer}
+                contentContainerStyle={[styles.formContainer, { backgroundColor: colors.background }]}
                 showsVerticalScrollIndicator={false}
               >
                 {/* Step 1: Incident Type and Severity */}
@@ -189,10 +190,10 @@ export default function ReportIncidentScreen() {
                             styles.incidentTypeItem,
                             { 
                               backgroundColor: values.incidentType === type.id 
-                                ? (colorScheme === 'dark' ? 'rgba(14, 165, 233, 0.2)' : 'rgba(14, 165, 233, 0.1)')
-                                : (colorScheme === 'dark' ? '#1E293B' : '#F8FAFC'),
+                                ? `${colors.emergencyRed}15` // Use emergencyRed with alpha
+                                : colors.card,
                               borderColor: values.incidentType === type.id 
-                                ? colors.tint
+                                ? colors.emergencyRed
                                 : colors.border,
                             }
                           ]}
@@ -200,14 +201,14 @@ export default function ReportIncidentScreen() {
                         >
                           <type.icon 
                             size={24} 
-                            color={values.incidentType === type.id ? colors.tint : colors.neutral} 
+                            color={values.incidentType === type.id ? colors.emergencyRed : colors.textSecondary} 
                           />
                           <Text 
                             style={[
                               styles.incidentTypeName,
                               { 
                                 color: values.incidentType === type.id 
-                                  ? colors.tint 
+                                  ? colors.emergencyRed
                                   : colors.text,
                                 fontFamily: values.incidentType === type.id 
                                   ? 'Inter-Medium' 
@@ -222,7 +223,7 @@ export default function ReportIncidentScreen() {
                     </View>
                     
                     {touched.incidentType && errors.incidentType && (
-                      <Text style={[styles.errorText, { color: colors.emergencyRed }]}>
+                      <Text style={[styles.errorText, { color: colors.error }]}>
                         {errors.incidentType}
                       </Text>
                     )}
@@ -239,8 +240,8 @@ export default function ReportIncidentScreen() {
                             styles.severityItem,
                             { 
                               backgroundColor: values.severity === level.id 
-                                ? `${level.color}20` // 20% opacity
-                                : (colorScheme === 'dark' ? '#1E293B' : '#F8FAFC'),
+                                ? `${level.color}15` // 15% opacity
+                                : colors.card,
                               borderColor: values.severity === level.id 
                                 ? level.color
                                 : colors.border,
@@ -274,7 +275,7 @@ export default function ReportIncidentScreen() {
                     </View>
                     
                     {touched.severity && errors.severity && (
-                      <Text style={[styles.errorText, { color: colors.emergencyRed }]}>
+                      <Text style={[styles.errorText, { color: colors.error }]}>
                         {errors.severity}
                       </Text>
                     )}
@@ -299,10 +300,10 @@ export default function ReportIncidentScreen() {
                             styles.selectItem,
                             { 
                               backgroundColor: values.building === building.id 
-                                ? (colorScheme === 'dark' ? 'rgba(14, 165, 233, 0.2)' : 'rgba(14, 165, 233, 0.1)')
-                                : (colorScheme === 'dark' ? '#1E293B' : '#F8FAFC'),
+                                ? `${colors.emergencyRed}15`
+                                : colors.card,
                               borderColor: values.building === building.id 
-                                ? colors.tint
+                                ? colors.emergencyRed
                                 : colors.border,
                             }
                           ]}
@@ -313,7 +314,7 @@ export default function ReportIncidentScreen() {
                               styles.selectItemText,
                               { 
                                 color: values.building === building.id 
-                                  ? colors.tint 
+                                  ? colors.emergencyRed
                                   : colors.text,
                                 fontFamily: values.building === building.id 
                                   ? 'Inter-Medium' 
@@ -328,7 +329,7 @@ export default function ReportIncidentScreen() {
                     </View>
                     
                     {touched.building && errors.building && (
-                      <Text style={[styles.errorText, { color: colors.emergencyRed }]}>
+                      <Text style={[styles.errorText, { color: colors.error }]}>
                         {errors.building}
                       </Text>
                     )}
@@ -344,10 +345,10 @@ export default function ReportIncidentScreen() {
                             styles.selectItem,
                             { 
                               backgroundColor: values.floor === floor.id 
-                                ? (colorScheme === 'dark' ? 'rgba(14, 165, 233, 0.2)' : 'rgba(14, 165, 233, 0.1)')
-                                : (colorScheme === 'dark' ? '#1E293B' : '#F8FAFC'),
+                                ? `${colors.emergencyRed}15`
+                                : colors.card,
                               borderColor: values.floor === floor.id 
-                                ? colors.tint
+                                ? colors.emergencyRed
                                 : colors.border,
                             }
                           ]}
@@ -358,7 +359,7 @@ export default function ReportIncidentScreen() {
                               styles.selectItemText,
                               { 
                                 color: values.floor === floor.id 
-                                  ? colors.tint 
+                                  ? colors.emergencyRed
                                   : colors.text,
                                 fontFamily: values.floor === floor.id 
                                   ? 'Inter-Medium' 
@@ -373,7 +374,7 @@ export default function ReportIncidentScreen() {
                     </View>
                     
                     {touched.floor && errors.floor && (
-                      <Text style={[styles.errorText, { color: colors.emergencyRed }]}>
+                      <Text style={[styles.errorText, { color: colors.error }]}>
                         {errors.floor}
                       </Text>
                     )}
@@ -386,7 +387,7 @@ export default function ReportIncidentScreen() {
                         styles.textInput,
                         { 
                           color: colors.text,
-                          backgroundColor: colorScheme === 'dark' ? '#1E293B' : '#F8FAFC',
+                          backgroundColor: colors.card,
                           borderColor: colors.border,
                         }
                       ]}
@@ -399,7 +400,7 @@ export default function ReportIncidentScreen() {
                     
                     <View style={styles.mapLocationSection}>
                       <View style={styles.mapLocationHeader}>
-                        <MapPin size={20} color={colors.tint} />
+                        <MapPin size={20} color={colors.emergencyRed} />
                         <Text style={[styles.mapLocationTitle, { color: colors.text }]}>
                           Mark Location on Map
                         </Text>
@@ -407,9 +408,9 @@ export default function ReportIncidentScreen() {
                       
                       <View style={[
                         styles.mapPlaceholder,
-                        { backgroundColor: colorScheme === 'dark' ? '#1E293B' : '#F8FAFC' }
+                        { backgroundColor: colors.card }
                       ]}>
-                        <Text style={[styles.mapPlaceholderText, { color: colors.neutral }]}>
+                        <Text style={[styles.mapPlaceholderText, { color: colors.textSecondary }]}>
                           Map would be displayed here to mark exact location
                         </Text>
                       </View>
@@ -432,7 +433,7 @@ export default function ReportIncidentScreen() {
                         styles.textArea,
                         { 
                           color: colors.text,
-                          backgroundColor: colorScheme === 'dark' ? '#1E293B' : '#F8FAFC',
+                          backgroundColor: colors.card,
                           borderColor: colors.border,
                         }
                       ]}
@@ -447,7 +448,7 @@ export default function ReportIncidentScreen() {
                     />
                     
                     {touched.description && errors.description && (
-                      <Text style={[styles.errorText, { color: colors.emergencyRed }]}>
+                      <Text style={[styles.errorText, { color: colors.error }]}>
                         {errors.description}
                       </Text>
                     )}
@@ -465,7 +466,7 @@ export default function ReportIncidentScreen() {
                             style={styles.imagePreview}
                           />
                           <Pressable 
-                            style={styles.removeImageButton}
+                            style={[styles.removeImageButton, { backgroundColor: colors.error }]}
                             onPress={() => {
                               const newImages = [...values.images];
                               newImages.splice(index, 1);
@@ -482,7 +483,7 @@ export default function ReportIncidentScreen() {
                         style={[
                           styles.addImageButton,
                           { 
-                            backgroundColor: colorScheme === 'dark' ? '#1E293B' : '#F8FAFC',
+                            backgroundColor: colors.card,
                             borderColor: colors.border,
                           }
                         ]}
@@ -491,8 +492,8 @@ export default function ReportIncidentScreen() {
                           console.log('Open camera/gallery');
                         }}
                       >
-                        <Plus size={24} color={colors.tint} />
-                        <Text style={[styles.addImageText, { color: colors.tint }]}>
+                        <Plus size={24} color={colors.emergencyRed} />
+                        <Text style={[styles.addImageText, { color: colors.emergencyRed }]}>
                           Add Photo
                         </Text>
                       </Pressable>
@@ -501,7 +502,13 @@ export default function ReportIncidentScreen() {
                 )}
               </ScrollView>
               
-              <View style={styles.buttonsContainer}>
+              <View style={[
+                styles.buttonsContainer, 
+                { 
+                  borderTopColor: colors.border,
+                  backgroundColor: colors.background
+                }
+              ]}>
                 {currentStep > 1 && (
                   <Button
                     title="Back"
@@ -709,7 +716,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#DC2626',
     width: 24,
     height: 24,
     borderRadius: 12,
@@ -736,6 +742,5 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: Platform.OS === 'ios' ? 24 : 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(100, 116, 139, 0.2)',
   },
 });

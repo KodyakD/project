@@ -2,36 +2,40 @@ import { useColorScheme } from 'react-native';
 
 const Colors = {
   light: {
-    text: '#1F2937',
-    background: '#F3F4F6',
-    tint: '#0EA5E9',
-    neutral: '#9CA3AF',
-    border: '#E5E7EB',
-    cardBackground: '#FFFFFF',
-    danger: '#EF4444',
-    emergencyRed: '#DC2626',
-    success: '#10B981',
-    primary: '#0EA5E9',
-    textSecondary: '#6B7280',
-    card: '#FFFFFF',
-    error: '#EF4444',
-    warning: '#F59E0B',
+    text: '#111827',             // Foreground text
+    background: '#FFFFFF',       // Background
+    tint: '#E11D48',             // Primary color - Emergency red
+    neutral: '#9CA3AF',          // Neutral gray
+    border: '#E5E7EB',           // Border color
+    cardBackground: '#FFFFFF',   // Card background
+    danger: '#DC2626',           // Critical red
+    emergencyRed: '#E11D48',     // Primary red
+    success: '#16A34A',          // Success green
+    primary: '#E11D48',          // Primary - same as the web app
+    secondary: '#3B82F6',        // Secondary blue - same as the web app
+    textSecondary: '#6B7280',    // Secondary text
+    card: '#FFFFFF',             // Card background
+    error: '#DC2626',            // Error/critical
+    warning: '#F59E0B',          // Warning yellow
+    info: '#0EA5E9',             // Info blue
   },
   dark: {
-    text: '#F9FAFB',
-    background: '#111827',
-    tint: '#0EA5E9',
-    neutral: '#6B7280',
-    border: '#374151',
-    cardBackground: '#1F2937',
-    danger: '#EF4444',
-    emergencyRed: '#DC2626',
-    success: '#10B981',
-    primary: '#0EA5E9',
-    textSecondary: '#9CA3AF',
-    card: '#1F2937',
-    error: '#EF4444',
-    warning: '#F59E0B',
+    text: '#F9FAFB',             // Dark mode text
+    background: '#111827',       // Dark background
+    tint: '#E11D48',             // Primary red stays the same in dark mode
+    neutral: '#6B7280',          // Dark neutral
+    border: '#374151',           // Dark border
+    cardBackground: '#1F2937',   // Dark card background
+    danger: '#DC2626',           // Critical stays visible in dark
+    emergencyRed: '#E11D48',     // Primary red
+    success: '#16A34A',          // Success green
+    primary: '#E11D48',          // Primary color
+    secondary: '#3B82F6',        // Secondary blue
+    textSecondary: '#9CA3AF',    // Secondary text in dark mode
+    card: '#1F2937',             // Card background
+    error: '#DC2626',            // Error red
+    warning: '#F59E0B',          // Warning yellow
+    info: '#0EA5E9',             // Info blue
   },
 };
 

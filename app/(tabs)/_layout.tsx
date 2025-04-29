@@ -15,6 +15,7 @@ export default function TabLayout() {
     <>
       <Tabs
         screenOptions={{
+          headerShown: false, // Add this line to hide the top "(tabs)" header
           tabBarActiveTintColor: colors.primary,
           tabBarInactiveTintColor: colors.textSecondary,
           tabBarStyle: {
@@ -33,6 +34,7 @@ export default function TabLayout() {
           name="index"
           options={{
             title: 'Dashboard',
+            headerShown: true, // Keep the header for individual tabs
             tabBarIcon: ({ color, size }) => <Feather name="home" size={size} color={color} />,
           }}
         />
@@ -40,6 +42,7 @@ export default function TabLayout() {
           name="incidents"
           options={{
             title: 'Incidents',
+            headerShown: true,
             tabBarIcon: ({ color, size }) => <Feather name="bell" size={size} color={color} />,
           }}
         />
@@ -47,6 +50,7 @@ export default function TabLayout() {
           name="assistant"
           options={{
             title: 'Assistant',
+            headerShown: true,
             tabBarIcon: ({ color, size }) => <Feather name="message-circle" size={size} color={color} />,
           }}
         />
@@ -54,15 +58,19 @@ export default function TabLayout() {
           name="profile"
           options={{
             title: 'Profile',
+            headerShown: true,
             tabBarIcon: ({ color, size }) => <Feather name="user" size={size} color={color} />,
           }}
         />
       </Tabs>
 
       <FloatingActionButton 
-        icon={<Feather name="user" size={24} color="#FFFFFF" />}
+        icon={<Feather name="plus" size={24} color="#FFFFFF" />}
         onPress={() => router.push('/report/incident')}
         label="Report Incident"
+        color={colors.primary}
+        position="bottom"  // Add this line to center it
+        size="small"            // Make it slightly smaller if needed
       />
     </>
   );

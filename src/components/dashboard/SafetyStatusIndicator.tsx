@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useTheme } from '../../context/ThemeContext';
+import { useRouter } from 'expo-router';
+import { useColorScheme } from 'react-native';
+import Colors from '../../constants/Colors';
+import { useToast } from '../../context/ToastContext';
+
+// Import ALL icons directly from lucide-react-native
 import { 
   CheckCircle, 
   AlertTriangle, 
@@ -8,9 +13,7 @@ import {
   XCircle, 
   Info,
   ChevronRight
-} from '@expo/vector-icons/Feather';
-import { useRouter } from 'expo-router';
-import { useToast } from '../../context/ToastContext';
+} from 'lucide-react-native';
 
 // Safety status types
 export type SafetyStatusLevel = 'normal' | 'advisory' | 'warning' | 'critical' | 'emergency';
@@ -28,7 +31,8 @@ interface SafetyStatusIndicatorProps {
 }
 
 export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicatorProps) {
-  const { colors } = useTheme();
+  const colorScheme = useColorScheme();
+  const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
   const toast = useToast();
   
@@ -41,39 +45,10 @@ export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicator
     updatedAt: new Date(),
   });
 
-  // For demo purposes, simulate a status change after component mount
-  useEffect(() => {
-    // Simulated data - in real app, this would be a Firebase listener
-    const DEMO_STATUSES: SafetyStatus[] = [
-      {
-        level: 'normal',
-        title: 'All Systems Normal',
-        message: 'No safety concerns or active incidents on campus.',
-        updatedAt: new Date(),
-      },
-      {
-        level: 'advisory',
-        title: 'Weather Advisory',
-        message: 'Heavy rain expected this afternoon. Please use caution when walking on campus.',
-        updatedAt: new Date(),
-        actionUrl: '/weather-advisory',
-      },
-      {
-        level: 'warning',
-        title: 'Maintenance Warning',
-        message: 'Building B second floor restrooms closed for maintenance.',
-        updatedAt: new Date(),
-        actionUrl: '/maintenance-notices',
-      },
-    ];
-    
-    // Randomly select a status (excluding emergency) for demo purposes
-    const randomIndex = Math.floor(Math.random() * DEMO_STATUSES.length);
-    setStatus(DEMO_STATUSES[randomIndex]);
-  }, []);
-
   // Get icon based on status level
-  const getStatusIcon = (level: SafetyStatusLevel, size: number = 24) => {
+  const getStatusIcon = (level: SafetyStatusLevel) => {
+    const size = 24;
+    
     switch (level) {
       case 'normal':
         return <CheckCircle size={size} color={colors.success} />;
@@ -126,14 +101,14 @@ export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicator
     }
   };
 
-  // Format the timestamp
+  // Format the updated time
   const formatUpdatedTime = (date: Date) => {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.round(diffMs / 60000);
+    const diffMins = Math.floor(diffMs / 60000);
     
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins} min ago`;
+    if (diffMins < 1) return 'just now';
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
     
     const hours = Math.floor(diffMins / 60);
     if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
@@ -149,7 +124,6 @@ export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicator
     } else if (status.actionUrl) {
       router.push(status.actionUrl);
     } else {
-      // Show more details or navigate to a default screen
       toast?.showToast({
         type: status.level === 'normal' ? 'success' : status.level === 'advisory' ? 'info' : 'warning',
         message: status.title,
@@ -182,7 +156,7 @@ export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicator
           {status.message}
         </Text>
         
-        <Text style={[styles.timestamp, { color: colors.textMuted }]}>
+        <Text style={[styles.timestamp, { color: colors.textSecondary }]}>
           Updated {formatUpdatedTime(status.updatedAt)}
         </Text>
       </View>
@@ -205,7 +179,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   iconContainer: {
-    marginRight: 16,
+    marginRight: 12,
   },
   contentContainer: {
     flex: 1,
@@ -217,7 +191,6 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: 14,
-    lineHeight: 20,
     marginBottom: 4,
   },
   timestamp: {
@@ -226,4 +199,4 @@ const styles = StyleSheet.create({
   actionContainer: {
     marginLeft: 8,
   },
-}); 
+});
