@@ -16,10 +16,49 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import Colors from '../../../src/constants/Colors';
 import incidentService from '../../../src/services/incidentService';
-import { StatusTimeline } from '../../../src/components/incidents/StatusTimeline';
-import { StatusBadge } from '../../../src/components/ui/StatusBadge';
+import StatusTimeline from '../../../src/components/incidents/StatusTimeline';
+import StatusBadge from '../../../src/components/ui/StatusBadge';
 import { format } from 'date-fns';
 import MapView from '../../../src/components/MapView';
+
+// Add this safe date formatting utility
+const safelyFormatDate = (dateValue: any, formatString = 'MMM d, yyyy • h:mm a') => {
+  try {
+    // Handle different timestamp formats from Firebase
+    let date;
+    
+    if (!dateValue) {
+      return 'Unknown date';
+    }
+    
+    // If it's a Firebase Timestamp object with toDate method
+    if (dateValue && typeof dateValue.toDate === 'function') {
+      date = dateValue.toDate();
+    }
+    // If it's a Firebase Timestamp object with seconds and nanoseconds
+    else if (dateValue && typeof dateValue.seconds === 'number') {
+      date = new Date(dateValue.seconds * 1000);
+    }
+    // If it's already a Date object
+    else if (dateValue instanceof Date) {
+      date = dateValue;
+    }
+    // If it's a string or number
+    else {
+      date = new Date(dateValue);
+    }
+    
+    // Check if date is valid before formatting
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    return format(date, formatString);
+  } catch (error) {
+    console.error('Error formatting date:', error);
+    return 'Invalid date';
+  }
+};
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -229,7 +268,7 @@ export default function IncidentDetailsScreen() {
                   Reported by {incident.reporterName}
                 </Text>
                 <Text style={[styles.reportDate, { color: colors.textSecondary }]}>
-                  {format(new Date(incident.reportedAt), 'MMM d, yyyy • h:mm a')}
+                  {safelyFormatDate(incident.reportedAt)}
                 </Text>
               </View>
             </View>
@@ -346,7 +385,7 @@ export default function IncidentDetailsScreen() {
                   <View style={styles.historyHeader}>
                     <StatusBadge status={statusUpdate.status} small />
                     <Text style={[styles.historyDate, { color: colors.textSecondary }]}>
-                      {format(new Date(statusUpdate.timestamp), 'MMM d, yyyy • h:mm a')}
+                      {safelyFormatDate(statusUpdate.timestamp)}
                     </Text>
                   </View>
                   
@@ -587,4 +626,4 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
   },
-}); 
+});

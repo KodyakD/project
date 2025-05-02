@@ -1240,7 +1240,8 @@ const incidentService = {
       console.error('Error submitting offline drafts:', error);
     }
   },
-
+  subscribeToIncident, // Add this line to include the function in the default export
+  
   getIncidentDraftById,
   getIncidentDrafts,
   deleteIncidentDraft,

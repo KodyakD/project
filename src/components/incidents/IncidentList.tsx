@@ -100,6 +100,17 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   const [searchQuery, setSearchQuery] = useState(initialFilters.search || '');
   const [showFilterOptions, setShowFilterOptions] = useState(false);
   
+  // Add this debug function right after the IncidentList component definition
+  const debugIncident = (incident: any, label: string = "Incident data") => {
+    console.log(`${label}:`, {
+      id: incident.id,
+      title: incident.title,
+      status: incident.status,
+      date: incident.reportedAt || incident.createdAt,
+      fields: Object.keys(incident)
+    });
+  };
+
   // Fetch incidents
   const fetchIncidents = useCallback(async () => {
     try {
@@ -108,65 +119,71 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       
       let fetchedIncidents: Incident[] = [];
       
-      if (isUserIncidents) {
-        // Get incidents reported by current user
-        const response = await incidentService.getIncidents({
-          reporterId: 'current' // This would be handled by the backend to filter by current user
-        });
-        // Properly extract the incidents array from the response
-        fetchedIncidents = response.incidents || [];
-      } else {
-        // Get all incidents
-        const response = await incidentService.getIncidents();
-        // Properly extract the incidents array from the response
-        fetchedIncidents = response.incidents || [];
+      try {
+        if (isUserIncidents) {
+          // Get incidents reported by current user
+          const response = await incidentService.getIncidents({
+            reporterId: 'current'
+          });
+          // Handle different possible response formats
+          if (response && response.incidents && Array.isArray(response.incidents)) {
+            fetchedIncidents = response.incidents;
+          } else if (Array.isArray(response)) {
+            fetchedIncidents = response;
+          } else if (response && typeof response === 'object') {
+            // If response is an object but not in expected format, try to extract incidents
+            fetchedIncidents = Object.values(response).filter(item => 
+              item && typeof item === 'object' && 'id' in item
+            ) as Incident[];
+          }
+        } else {
+          // Get all incidents
+          const response = await incidentService.getIncidents();
+          // Handle different possible response formats
+          if (response && response.incidents && Array.isArray(response.incidents)) {
+            fetchedIncidents = response.incidents;
+          } else if (Array.isArray(response)) {
+            fetchedIncidents = response;
+          } else if (response && typeof response === 'object') {
+            // If response is an object but not in expected format, try to extract incidents
+            fetchedIncidents = Object.values(response).filter(item => 
+              item && typeof item === 'object' && 'id' in item
+            ) as Incident[];
+          }
+        }
+      } catch (fetchError) {
+        console.warn('Error fetching incidents, using cached data:', fetchError);
+        // Don't set error here - just use cached data from real-time updates
       }
       
-      setIncidents(fetchedIncidents);
-      applyFilters(fetchedIncidents, filters);
+      console.log(`Fetched ${fetchedIncidents.length} incidents`);
+      
+      // Only update incidents if we actually got some, otherwise keep existing ones
+      if (fetchedIncidents.length > 0) {
+        setIncidents(fetchedIncidents);
+        applyFilters(fetchedIncidents, filters);
+      } else {
+        // Just reapply filters to existing incidents
+        applyFilters(incidents, filters);
+      }
       
     } catch (err) {
-      console.error('Error fetching incidents:', err);
+      console.error('Error in fetchIncidents:', err);
       setError('Failed to load incidents. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isUserIncidents, filters]);
-  
-  // Initial fetch
-  useEffect(() => {
-    fetchIncidents();
-    
-    // Set up real-time updates subscription
-    let unsubscribe: (() => void) | null = null;
-    
-    try {
-      // Use the Firebase subscription
-      unsubscribe = incidentService.subscribeToIncidents((updatedIncidents) => {
-        // Make sure we don't cause an infinite loop
-        console.log("Received real-time update with", updatedIncidents.length, "incidents");
-        
-        // Only update if we have data and it's different
-        if (updatedIncidents && updatedIncidents.length > 0) {
-          setIncidents(updatedIncidents);
-          applyFilters(updatedIncidents, filters);
-        }
-      });
-    } catch (error) {
-      console.error('Error setting up real-time subscription:', error);
-    }
-    
-    // Cleanup subscription on unmount
-    return () => {
-      if (typeof unsubscribe === 'function') {
-        unsubscribe();
-      }
-    };
-  }, [fetchIncidents]);
+  }, [isUserIncidents, filters, applyFilters, incidents]);
   
   // Apply filters to incidents
   const applyFilters = useCallback((incidentsToFilter: Incident[], currentFilters: IncidentFilter) => {
+    // First, let's log what we're working with
+    console.log(`Applying filters to ${incidentsToFilter.length} incidents`, currentFilters);
+    if (incidentsToFilter.length > 0) {
+      debugIncident(incidentsToFilter[0], "Sample incident");
+    }
+
     let result = [...incidentsToFilter];
     
     // Status filter
@@ -183,30 +200,32 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     if (currentFilters.search) {
       const searchLower = currentFilters.search.toLowerCase();
       result = result.filter(incident => 
-        incident.title.toLowerCase().includes(searchLower) || 
-        incident.description.toLowerCase().includes(searchLower) ||
+        (incident.title?.toLowerCase().includes(searchLower)) || 
+        (incident.description?.toLowerCase().includes(searchLower)) ||
         (incident.location?.description?.toLowerCase().includes(searchLower))
       );
     }
     
-    // Date range filter
+    // Date range filter - handle missing date fields gracefully
     if (currentFilters.dateRange) {
       if (currentFilters.dateRange.start) {
         result = result.filter(incident => {
-          const reportedDate = new Date(incident.reportedAt);
-          return reportedDate >= (currentFilters.dateRange?.start as Date);
+          // Use reportedAt or fall back to createdAt
+          const reportedDate = new Date(incident.reportedAt || incident.createdAt);
+          return !isNaN(reportedDate.getTime()) && reportedDate >= (currentFilters.dateRange?.start as Date);
         });
       }
       
       if (currentFilters.dateRange.end) {
         result = result.filter(incident => {
-          const reportedDate = new Date(incident.reportedAt);
-          return reportedDate <= (currentFilters.dateRange?.end as Date);
+          // Use reportedAt or fall back to createdAt
+          const reportedDate = new Date(incident.reportedAt || incident.createdAt);
+          return !isNaN(reportedDate.getTime()) && reportedDate <= (currentFilters.dateRange?.end as Date);
         });
       }
     }
     
-    // Sort incidents
+    // Sort incidents - handle missing date fields
     const sortBy = currentFilters.sortBy || 'date';
     const sortOrder = currentFilters.sortOrder || 'desc';
     
@@ -214,9 +233,14 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       let comparison = 0;
       
       switch (sortBy) {
-        case 'date':
-          comparison = new Date(a.reportedAt).getTime() - new Date(b.reportedAt).getTime();
+        case 'date': {
+          // Get timestamps, fall back to createdAt if reportedAt is missing
+          const aTime = new Date(a.reportedAt || a.createdAt).getTime();
+          const bTime = new Date(b.reportedAt || b.createdAt).getTime();
+          // Handle invalid dates
+          comparison = !isNaN(aTime) && !isNaN(bTime) ? aTime - bTime : 0;
           break;
+        }
         case 'severity': {
           const severityOrder = { low: 0, medium: 1, high: 2, critical: 3 };
           comparison = (severityOrder[a.severity] || 0) - (severityOrder[b.severity] || 0);
@@ -232,6 +256,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       return sortOrder === 'asc' ? comparison : -comparison;
     });
     
+    console.log(`After filtering: ${result.length} incidents`);
     setFilteredIncidents(result);
   }, []);
   
@@ -248,7 +273,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     updateFilters({ search: text });
   }, [updateFilters]);
   
-  // Handle refresh
+  // Handle refresh remains the same but now uses fetchIncidents
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     fetchIncidents();
@@ -266,7 +291,17 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     if (onSelectIncident) {
       onSelectIncident(incident);
     } else {
-      router.push(`/report/details/${incident.id}`);
+      try {
+        if (!router) {
+          console.warn("Router is undefined, using alternative navigation");
+          // Fallback navigation using Linking or other approach
+          return;
+        }
+        router.push(`/report/details/${incident.id}`);
+      } catch (error) {
+        console.error("Navigation error:", error);
+        // Show an error toast or message to the user
+      }
     }
   };
   
@@ -291,19 +326,19 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             style={[styles.incidentTitle]}
             numberOfLines={1}
           >
-            {item.title}
+            {item.title || "Untitled Incident"}
           </Text>
           
           <View style={styles.incidentMeta}>
             <Text style={[styles.incidentDate]}>
-              {safelyFormatDate(item.reportedAt)}
+              {safelyFormatDate(item.reportedAt || item.createdAt)}
             </Text>
           </View>
         </View>
         
         <View style={[
           styles.severityIndicator,
-          { backgroundColor: SeverityColors[item.severity] }
+          { backgroundColor: SeverityColors[item.severity] || SeverityColors.medium }
         ]} />
       </View>
       
@@ -311,7 +346,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         style={[styles.incidentDescription]}
         numberOfLines={2}
       >
-        {item.description}
+        {item.description || "No description provided"}
       </Text>
       
       <View style={styles.incidentFooter}>
@@ -562,6 +597,58 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     </View>
   );
   
+  // Split your useEffect into two separate ones - one for subscription and one for filters
+
+  // 1. First useEffect - subscription and initial fetch
+  useEffect(() => {
+    // Set loading on initial mount
+    setLoading(true);
+    
+    let unsubscribe: (() => void) | null = null;
+    
+    try {
+      console.log("Setting up incidents subscription...");
+      // Use the Firebase subscription
+      unsubscribe = incidentService.subscribeToIncidents((updatedIncidents) => {
+        console.log("Received real-time update with", updatedIncidents.length, "incidents");
+        
+        // Ensure we have valid data before updating state
+        if (Array.isArray(updatedIncidents)) {
+          setIncidents(updatedIncidents);
+          // Apply current filters to the new data
+          applyFilters(updatedIncidents, filters);
+          // Important: Set loading to false when we receive data from subscription
+          setLoading(false);
+          setRefreshing(false);
+        }
+      });
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+      // Set error and turn off loading if subscription setup fails
+      setError('Failed to connect to real-time updates. Please try again.');
+      setLoading(false);
+      setRefreshing(false);
+    }
+    
+    // Cleanup subscription on unmount
+    return () => {
+      console.log("Cleaning up incidents subscription");
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []); // Empty dependency array - only run on mount and unmount
+
+  // 2. Second useEffect - handle filter changes
+  useEffect(() => {
+    // Skip initial call when incidents is empty
+    if (incidents.length === 0) return;
+    
+    // When filters change, just reapply them to existing data
+    console.log("Filters changed, reapplying to existing incidents");
+    applyFilters(incidents, filters);
+  }, [filters, incidents, applyFilters]);
+
   return (
     <View style={styles.container}>
       {showFilters && (

@@ -360,3 +360,5 @@ const TouchableOpacity: React.FC<TouchableOpacity> = ({ style, onPress, children
     </TouchableWithoutFeedback>
   );
 }; 
+
+export default MapView;

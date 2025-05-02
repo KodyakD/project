@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import IncidentList from '../../src/components/incidents/IncidentList';
 import { useTheme } from '../../src/context/ThemeContext';
 import NetInfo from '@react-native-community/netinfo';
+import { Incident } from '@/src/types';
 
 export default function IncidentsScreen() {
   // Use the theme context instead of direct colorScheme
@@ -43,7 +44,9 @@ export default function IncidentsScreen() {
       Alert.alert('Navigation Error', 'Unable to navigate to report screen. Please try again.');
     }
   };
-  
+  const handleSelectIncident = (incident: Incident) => {
+    router.push(`/report/details/${incident.id}`);
+  };
   // Render the screen header with title and tabs
   const renderHeader = () => (
     <View style={styles.headerContainer}>
@@ -110,7 +113,8 @@ export default function IncidentsScreen() {
     key: "all-incidents", // Add key to force re-render when switching tabs
     showFilters: true,
     emptyStateMessage: "No incidents have been reported yet",
-    initialFilters: {}
+    initialFilters: {},
+    onSelectIncident: handleSelectIncident // Add this line
   };
 
   const myIncidentsProps = {
@@ -118,7 +122,8 @@ export default function IncidentsScreen() {
     showFilters: true,
     isUserIncidents: true,
     emptyStateMessage: "You haven't reported any incidents yet",
-    initialFilters: {}
+    initialFilters: {},
+    onSelectIncident: handleSelectIncident // Add this line
   };
 
   return (

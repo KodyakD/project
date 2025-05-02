@@ -83,3 +83,5 @@ const styles = StyleSheet.create({
     color: '#16A34A',
   },
 });
+
+export default StatusBadge;

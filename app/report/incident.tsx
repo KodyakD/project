@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Colors from '../../src/constants/Colors';
@@ -19,6 +20,7 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Button from '../../src/components/ui/Button';
 import { useTheme } from '../../src/context/ThemeContext';
+import * as ImagePicker from 'expo-image-picker';
 
 // Mock building and floor data
 const buildings = [
@@ -487,9 +489,38 @@ export default function ReportIncidentScreen() {
                             borderColor: colors.border,
                           }
                         ]}
-                        onPress={() => {
-                          // In a real app, this would open camera/gallery
-                          console.log('Open camera/gallery');
+                        onPress={async () => {
+                          try {
+                            // Request permissions first
+                            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                            if (status !== 'granted') {
+                              Alert.alert('Permission Required', 'Please grant access to your photo library to add images.');
+                              return;
+                            }
+                            
+                            // Launch image picker
+                            const result = await ImagePicker.launchImageLibraryAsync({
+                              mediaTypes: ImagePicker.MediaTypeOptions.Images,
+                              allowsEditing: true,
+                              aspect: [4, 3],
+                              quality: 0.8,
+                            });
+                            
+                            // Handle the result
+                            if (!result.canceled && result.assets && result.assets.length > 0) {
+                              // Get current images from form
+                              const currentImages = [...values.images];
+                              
+                              // Add the new image
+                              currentImages.push(result.assets[0].uri);
+                              
+                              // Update the Formik state
+                              setFieldValue('images', currentImages);
+                            }
+                          } catch (error) {
+                            console.error('Error picking image:', error);
+                            Alert.alert('Error', 'Failed to open photo picker. Please try again.');
+                          }
                         }}
                       >
                         <Plus size={24} color={colors.emergencyRed} />
