@@ -18,7 +18,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { BarCodeScanner } from 'expo-barcode-scanner';
+import { Camera, CameraType, BarcodeScanningResult } from 'expo-camera';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
@@ -216,6 +216,10 @@ const styles = StyleSheet.create({
     fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
     textAlign: 'center',
   },
+  cameraContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
   // SSO styles
   ssoContainer: {
     alignItems: 'center',
@@ -286,7 +290,7 @@ export default function LoginScreen() {
   useEffect(() => {
     if (loginMethod === 'qr') {
       (async () => {
-        const { status } = await BarCodeScanner.requestPermissionsAsync();
+        const { status } = await Camera.requestCameraPermissionsAsync();
         setHasPermission(status === 'granted');
         
         if (status !== 'granted') {
@@ -354,13 +358,14 @@ export default function LoginScreen() {
   };
 
   // Handle QR code scan for guest login
-  const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
+  const handleBarCodeScanned = async (scanResult: BarcodeScanningResult) => {
     setScanned(true);
     
     try {
       setIsSubmitting(true);
       if (clearError) clearError();
       
+      const { data } = scanResult;
       // Check if QR code has valid format for our system
       // The React Native Firebase SDK version expects format: "GUEST:institution:timestamp:token"
       if (!data.startsWith('GUEST:')) {
@@ -502,10 +507,13 @@ export default function LoginScreen() {
         return (
           <View style={styles.qrContainer}>
             <View style={styles.scannerContainer}>
-              <BarCodeScanner
+              <Camera
+                type={CameraType.back}
                 onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
                 style={StyleSheet.absoluteFillObject}
-                barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
+                barCodeScannerSettings={{
+                  barCodeTypes: ['qr'],
+                }}
               />
               <View style={styles.scannerOverlay}>
                 <View style={styles.scannerTarget} />

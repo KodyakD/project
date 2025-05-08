@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import Button from '../src/components/ui/Button';
 import Colors from '../src/constants/Colors';
+import { Camera, CameraType } from 'expo-camera';
 
 export default function GuestLoginScreen() {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -29,38 +30,26 @@ export default function GuestLoginScreen() {
     
     const checkScannerAvailability = async () => {
       try {
+        // Check if we're running on web (where camera access is restricted)
         if (Platform.OS === 'web') {
-          setScannerAvailable(false);
+          if (mounted) {
+            setScannerAvailable(false);
+            setError('QR code scanning is not available on web.');
+          }
           return;
         }
         
-        // Check if the module exists without importing it directly
-        const hasModule = await import('expo-barcode-scanner')
-          .then(() => true)
-          .catch(() => false);
-          
+        // Check camera permissions instead of barcode scanner
+        const { status } = await Camera.requestCameraPermissionsAsync();
         if (mounted) {
-          setScannerAvailable(hasModule);
-          
-          if (!hasModule) {
-            setError('Barcode scanner is not available on this device.');
-            return;
-          }
-          
-          // Only request permission if the module is available
-          if (hasModule) {
-            const { BarCodeScanner } = await import('expo-barcode-scanner');
-            const { status } = await BarCodeScanner.requestPermissionsAsync();
-            if (mounted) {
-              setHasPermission(status === 'granted');
-            }
-          }
+          setScannerAvailable(true);
+          setHasPermission(status === 'granted');
         }
       } catch (e) {
-        console.log('Error checking barcode scanner:', e);
+        console.log('Error checking camera:', e);
         if (mounted) {
           setScannerAvailable(false);
-          setError('Barcode scanner is not available on this device.');
+          setError('Camera is not available on this device.');
         }
       }
     };
@@ -240,12 +229,12 @@ export default function GuestLoginScreen() {
 
       <View style={styles.scannerContainer}>
         {/* 
-          Conditionally render the barcode scanner to prevent errors
+          Conditionally render the camera to prevent errors
           when it's not properly initialized
         */}
         {Platform.OS !== 'web' && hasPermission ? (
           <>
-            {/* We'll load the BarCodeScanner only when needed to prevent errors */}
+            {/* We'll load the Camera only when needed to prevent errors */}
             <BarCodeScannerComponent 
               onScan={scanned ? undefined : handleBarCodeScanned}
             />
@@ -256,7 +245,7 @@ export default function GuestLoginScreen() {
         ) : (
           <View style={[styles.mockScanner, { backgroundColor: '#333' }]}>
             <Text style={{ color: '#fff', textAlign: 'center' }}>
-              QR scanner preview (unavailable in this environment)
+              Camera preview (unavailable in this environment)
             </Text>
           </View>
         )}
@@ -324,30 +313,29 @@ export default function GuestLoginScreen() {
   );
 }
 
-// Separate component to load the barcode scanner dynamically
+// Separate component to load the camera instead of barcode scanner
 function BarCodeScannerComponent({ onScan }: { onScan: any }) {
-  const [BarCodeScanner, setBarCodeScanner] = useState<any>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     let mounted = true;
     
-    const loadScanner = async () => {
+    const setupCamera = async () => {
       try {
-        // Use dynamic import
-        const module = await import('expo-barcode-scanner');
+        const { status } = await Camera.requestCameraPermissionsAsync();
         if (mounted) {
-          setBarCodeScanner(() => module.BarCodeScanner);
+          setHasPermission(status === 'granted');
         }
       } catch (err) {
-        console.error('Error loading BarCodeScanner:', err);
+        console.error('Error setting up camera:', err);
         if (mounted) {
-          setError('Could not load barcode scanner');
+          setError('Could not access camera');
         }
       }
     };
     
-    loadScanner();
+    setupCamera();
     
     return () => {
       mounted = false;
@@ -357,23 +345,35 @@ function BarCodeScannerComponent({ onScan }: { onScan: any }) {
   if (error) {
     return (
       <View style={[StyleSheet.absoluteFill, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: '#fff' }}>Scanner error: {error}</Text>
+        <Text style={{ color: '#fff' }}>Camera error: {error}</Text>
       </View>
     );
   }
   
-  if (!BarCodeScanner) {
+  if (hasPermission === null) {
     return (
       <View style={[StyleSheet.absoluteFill, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
-        <Text style={{ color: '#fff' }}>Loading scanner...</Text>
+        <Text style={{ color: '#fff' }}>Requesting camera permission...</Text>
+      </View>
+    );
+  }
+  
+  if (hasPermission === false) {
+    return (
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#333', justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: '#fff' }}>No access to camera</Text>
       </View>
     );
   }
   
   return (
-    <BarCodeScanner
+    <Camera
       onBarCodeScanned={onScan}
       style={StyleSheet.absoluteFill}
+      type={CameraType.back}
+      barCodeScannerSettings={{
+        barCodeTypes: ['qr'],
+      }}
     />
   );
 }

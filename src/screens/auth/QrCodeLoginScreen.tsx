@@ -9,10 +9,20 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { Camera, CameraType, BarCodeScanningResult } from 'expo-camera';
+import { Camera, CameraType } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS } from '../../constants';
+
+// Define a replacement type if needed
+interface BarCodeScanningResult {
+  type: string;
+  data: string;
+  bounds?: {
+    origin: { x: number; y: number; };
+    size: { width: number; height: number; };
+  };
+}
 
 const QrCodeLoginScreen: React.FC = () => {
   const navigation = useNavigation<StackNavigationProp<any>>();
@@ -332,4 +342,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default QrCodeLoginScreen; 
+export default QrCodeLoginScreen;

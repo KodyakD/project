@@ -20,7 +20,8 @@
       "expo-router",
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-camera"
     ],
     "experiments": {
       "typedRoutes": true
@@ -32,9 +33,9 @@
       }
     },
     "android": {
-      "compileSdkVersion": 35,
+      "compileSdkVersion": 34,
       "targetSdkVersion": 33,
-      "buildToolsVersion": "35.0.0",
+      "buildToolsVersion": "34.0.0",
       "permissions": [
         "android.permission.CAMERA"
       ],
