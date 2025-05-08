@@ -5,15 +5,8 @@ import { useColorScheme } from 'react-native';
 import Colors from '../../constants/Colors';
 import { useToast } from '../../context/ToastContext';
 
-// Import ALL icons directly from lucide-react-native
-import { 
-  CheckCircle, 
-  AlertTriangle, 
-  AlertCircle, 
-  XCircle, 
-  Info,
-  ChevronRight
-} from 'lucide-react-native';
+// Replace lucide imports with Expo Vector Icons
+import { Feather } from '@expo/vector-icons';
 
 // Safety status types
 export type SafetyStatusLevel = 'normal' | 'advisory' | 'warning' | 'critical' | 'emergency';
@@ -45,23 +38,23 @@ export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicator
     updatedAt: new Date(),
   });
 
-  // Get icon based on status level
+  // Replace getStatusIcon function
   const getStatusIcon = (level: SafetyStatusLevel) => {
     const size = 24;
     
     switch (level) {
       case 'normal':
-        return <CheckCircle size={size} color={colors.success} />;
+        return <Feather name="check-circle" size={size} color={colors.success} />;
       case 'advisory':
-        return <Info size={size} color={colors.info} />;
+        return <Feather name="info" size={size} color={colors.info} />;
       case 'warning':
-        return <AlertTriangle size={size} color={colors.warning} />;
+        return <Feather name="alert-triangle" size={size} color={colors.warning} />;
       case 'critical':
-        return <AlertCircle size={size} color={colors.error} />;
+        return <Feather name="alert-circle" size={size} color={colors.error} />;
       case 'emergency':
-        return <XCircle size={size} color={colors.error} />;
+        return <Feather name="x-circle" size={size} color={colors.error} />;
       default:
-        return <CheckCircle size={size} color={colors.success} />;
+        return <Feather name="check-circle" size={size} color={colors.success} />;
     }
   };
 
@@ -162,7 +155,7 @@ export default function SafetyStatusIndicator({ onPress }: SafetyStatusIndicator
       </View>
       
       <View style={styles.actionContainer}>
-        <ChevronRight size={20} color={colors.textSecondary} />
+        <Feather name="chevron-right" size={20} color={colors.textSecondary} />
       </View>
     </TouchableOpacity>
   );

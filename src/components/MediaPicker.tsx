@@ -13,10 +13,9 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system';
-import { storage } from '../config/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import storage from '@react-native-firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
-import { theme } from '../styles/theme';
+import { theme } from '../constants/theme'; 
 
 interface MediaPickerProps {
   mediaUrls: string[];
@@ -79,20 +78,18 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
         ? await compressImage(uri)
         : uri;
       
-      // Create blob from uri
-      const response = await fetch(finalUri);
-      const blob = await response.blob();
-      
       // Generate unique file name
       const extension = mimeType.split('/')[1];
       const fileName = `incidents/${uuidv4()}.${extension}`;
       
-      // Upload to Firebase storage
-      const storageRef = ref(storage, fileName);
-      await uploadBytes(storageRef, blob);
+      // Create a reference to the Firebase Storage location
+      const storageRef = storage().ref(fileName);
+      
+      // Upload file to Firebase Storage using React Native Firebase
+      await storageRef.putFile(finalUri);
       
       // Get download URL
-      const downloadUrl = await getDownloadURL(storageRef);
+      const downloadUrl = await storageRef.getDownloadURL();
       return downloadUrl;
     } catch (error) {
       console.error('Error uploading media:', error);
@@ -111,7 +108,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
         quality: 0.8,
       });
       
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         await handleUpload(result.assets[0].uri, 'image/jpeg');
       }
     } catch (error) {
@@ -132,7 +129,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
         videoMaxDuration: 60,
       });
       
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         await handleUpload(result.assets[0].uri, 'video/mp4');
       }
     } catch (error) {
@@ -152,7 +149,7 @@ export const MediaPicker: React.FC<MediaPickerProps> = ({
         quality: 0.8,
       });
       
-      if (!result.canceled) {
+      if (!result.canceled && result.assets && result.assets[0]) {
         const asset = result.assets[0];
         const mimeType = asset.type || (asset.uri.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
         await handleUpload(asset.uri, mimeType);
@@ -346,4 +343,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontStyle: 'italic',
   },
-}); 
+});

@@ -9,13 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  X,
-  AlertTriangle,
-} from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 
 // Types
@@ -153,14 +147,14 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
     
     switch (options.type) {
       case 'success':
-        return <CheckCircle2 size={iconSize} color={iconColor} />;
+        return <Feather name="check-circle" size={iconSize} color={iconColor} />;
       case 'error':
-        return <AlertCircle size={iconSize} color={iconColor} />;
+        return <Feather name="alert-circle" size={iconSize} color={iconColor} />;
       case 'warning':
-        return <AlertTriangle size={iconSize} color={iconColor} />;
+        return <Feather name="alert-triangle" size={iconSize} color={iconColor} />;
       case 'info':
       default:
-        return <Info size={iconSize} color={iconColor} />;
+        return <Feather name="info" size={iconSize} color={iconColor} />;
     }
   };
 
@@ -243,7 +237,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({
             </View>
             
             <TouchableOpacity style={styles.closeButton} onPress={() => hideToast()}>
-              <X size={16} color={colors.textSecondary} />
+              <Feather name="x" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           </Animated.View>
         </SafeAreaView>
@@ -311,4 +305,4 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
   },
-}); 
+});

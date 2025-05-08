@@ -24,7 +24,7 @@ import Animated, {
   Extrapolate,
 } from 'react-native-reanimated';
 import { PanGestureHandler } from 'react-native-gesture-handler';
-import { X } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 
 interface BottomSheetProps {
   isVisible: boolean;
@@ -244,7 +244,7 @@ export default function BottomSheet({
                 
                 {showCloseButton && (
                   <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-                    <X size={20} color={colors.text} />
+                    <Feather name="x" size={20} color={colors.text} />
                   </TouchableOpacity>
                 )}
               </View>
@@ -337,4 +337,4 @@ const styles = StyleSheet.create({
     padding: 16,
     borderTopWidth: 1,
   },
-}); 
+});

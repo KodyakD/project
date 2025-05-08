@@ -7,7 +7,8 @@ import {
   Modal, 
   Pressable 
 } from 'react-native';
-import { Sun, Moon, Monitor } from 'lucide-react-native';
+// Replace lucide imports with Expo Vector Icons
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function ThemeToggle() {
@@ -21,11 +22,11 @@ export default function ThemeToggle() {
         onPress={() => setModalVisible(true)}
       >
         {theme === 'dark' ? (
-          <Moon size={20} color={colors.text} />
+          <Feather name="moon" size={20} color={colors.text} />
         ) : theme === 'light' ? (
-          <Sun size={20} color={colors.text} />
+          <Feather name="sun" size={20} color={colors.text} />
         ) : (
-          <Monitor size={20} color={colors.text} />
+          <Feather name="monitor" size={20} color={colors.text} />
         )}
       </TouchableOpacity>
 
@@ -53,7 +54,7 @@ export default function ThemeToggle() {
                 setModalVisible(false);
               }}
             >
-              <Sun size={20} color={theme === 'light' ? colors.primary : colors.text} />
+              <Feather name="sun" size={20} color={theme === 'light' ? colors.primary : colors.text} />
               <Text style={[
                 styles.optionText, 
                 { color: theme === 'light' ? colors.primary : colors.text }
@@ -73,7 +74,7 @@ export default function ThemeToggle() {
                 setModalVisible(false);
               }}
             >
-              <Moon size={20} color={theme === 'dark' ? colors.primary : colors.text} />
+              <Feather name="moon" size={20} color={theme === 'dark' ? colors.primary : colors.text} />
               <Text style={[
                 styles.optionText, 
                 { color: theme === 'dark' ? colors.primary : colors.text }
@@ -93,7 +94,7 @@ export default function ThemeToggle() {
                 setModalVisible(false);
               }}
             >
-              <Monitor size={20} color={theme === 'system' ? colors.primary : colors.text} />
+              <Feather name="monitor" size={20} color={theme === 'system' ? colors.primary : colors.text} />
               <Text style={[
                 styles.optionText, 
                 { color: theme === 'system' ? colors.primary : colors.text }

@@ -24,7 +24,7 @@ import { COLORS, FONTS, SIZES } from '../src/constants';
 import Colors from '../src/constants/Colors';
 import { USER_ROLES } from '../src/constants/roles';
 
-// Validation schema
+// Validation schema 
 const registrationSchema = Yup.object().shape({
   firstName: Yup.string().required('First name is required'),
   lastName: Yup.string().required('Last name is required'),
@@ -67,7 +67,7 @@ const RegisterScreen = () => {
   // Clear error when component unmounts
   useEffect(() => {
     return () => {
-      clearError();
+      if (clearError) clearError();
     };
   }, [clearError]);
 
@@ -114,24 +114,33 @@ const RegisterScreen = () => {
   const handleSubmit = async () => {
     try {
       setIsSubmitting(true);
-      clearError();
+      if (clearError) clearError();
 
       // Validate all fields
       await registrationSchema.validate(formData, { abortEarly: false });
 
-      // Register user
+      // Combine first and last name for display name
+      const displayName = `${formData.firstName} ${formData.lastName}`;
+
+      // Register user with React Native Firebase SDK
       await register(
         formData.email,
         formData.password,
-        {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          role: formData.role,
-        }
+        displayName,
+        formData.role
       );
 
-      // Navigate to success page
-      router.replace('/registration-success');
+      // Show success message
+      Alert.alert(
+        'Registration Successful',
+        'Your account has been created. You can now log in.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/login')
+          }
+        ]
+      );
     } catch (error) {
       if (error instanceof Yup.ValidationError) {
         // Handle validation errors
@@ -142,9 +151,17 @@ const RegisterScreen = () => {
           }
         });
         setFormErrors(errors);
-      } else {
-        // Error is already handled by auth context
+      } else if (error instanceof Error) {
+        // Firebase errors are already handled by auth context and displayed via the error prop
         console.error('Registration error:', error);
+        
+        // If there's a specific error that's not captured by the auth context
+        if (!error.message.includes('auth/') && !error.message.includes('network')) {
+          Alert.alert(
+            'Registration Failed',
+            'There was a problem creating your account. Please try again later.'
+          );
+        }
       }
     } finally {
       setIsSubmitting(false);
@@ -212,6 +229,7 @@ const RegisterScreen = () => {
                   onChangeText={(text) => handleChange('firstName', text)}
                   onBlur={() => validateField('firstName')}
                   editable={!isSubmitting}
+                  returnKeyType="next"
                 />
                 {formErrors.firstName && (
                   <Text style={[styles.fieldError, { color: colors.error }]}>
@@ -233,6 +251,7 @@ const RegisterScreen = () => {
                   onChangeText={(text) => handleChange('lastName', text)}
                   onBlur={() => validateField('lastName')}
                   editable={!isSubmitting}
+                  returnKeyType="next"
                 />
                 {formErrors.lastName && (
                   <Text style={[styles.fieldError, { color: colors.error }]}>
@@ -257,6 +276,8 @@ const RegisterScreen = () => {
               autoCapitalize="none"
               keyboardType="email-address"
               editable={!isSubmitting}
+              returnKeyType="next"
+              autoComplete="email"
             />
             {formErrors.email && (
               <Text style={[styles.fieldError, { color: colors.error }]}>
@@ -280,6 +301,8 @@ const RegisterScreen = () => {
                 secureTextEntry={!showPassword}
                     autoCapitalize="none"
                 editable={!isSubmitting}
+                returnKeyType="next"
+                autoComplete="password-new"
                   />
                   <TouchableOpacity
                     style={styles.visibilityIcon}
@@ -315,6 +338,8 @@ const RegisterScreen = () => {
                 secureTextEntry={!showConfirmPassword}
                     autoCapitalize="none"
                 editable={!isSubmitting}
+                returnKeyType="next"
+                autoComplete="password-new"
                   />
                   <TouchableOpacity
                     style={styles.visibilityIcon}

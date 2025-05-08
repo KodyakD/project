@@ -1,4 +1,4 @@
-import { FloorType } from '@/types/map.types';
+import { FloorType } from '../types/map.types';
 
 export const FLOORS = [
   { id: 'rdc', label: 'RDC', fullName: 'Ground Floor' },

@@ -16,14 +16,14 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { useLocation } from '@/services/locationService';
-import { createIncident, IncidentSeverity, IncidentStatus } from '@/services/incidentService';
-import { uploadIncidentMedia } from '@/services/mediaService';
-import { FloorType } from '@/types/map.types';
-import { FLOORS } from '@/constants/floors';
-import MediaPreview from '@/components/incidents/MediaPreview';
-import { auth } from '@/config/firebase';
-import Colors from '@/constants/Colors';
+import { useLocation } from '../../services/locationService';
+import { createIncident, IncidentSeverity, IncidentStatus } from '../../services/incidentService';
+import { uploadIncidentMedia } from '../../services/mediaService';
+import { FloorType } from '../../types/map.types';
+import { FLOORS } from '../../constants/floors';
+import MediaPreview from '../../components/incidents/MediaPreview';
+import { auth } from '../../config/firebase';
+import Colors from '../../constants/Colors';
 
 interface RouteParams {
   initialFloor?: FloorType;

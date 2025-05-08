@@ -10,12 +10,12 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapViewer from '@/components/maps/MapViewer';
-import { FloorSelector } from '@/components/maps/FloorSelector';
-import { getFloorMapData } from '@/services/floorMapService';
-import { getIncident } from '@/services/incidentService';
-import { FloorType } from '@/types/map.types';
-import { FLOORS } from '@/constants/floors';
+import MapViewer from '../../components/maps/MapViewer';
+import { FloorSelector } from '../../components/maps/FloorSelector';
+import { getFloorMapData } from '../../services/floorMapService';
+import { getIncident } from '../../services/incidentService';
+import { FloorType } from '../../types/map.types';
+import { FLOORS } from '../../constants/floors';
 
 interface RouteParams {
   floor: FloorType;

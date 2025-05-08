@@ -1,6 +1,6 @@
 import { collection, doc, query, where, onSnapshot, getDocs, getDoc, orderBy, limit } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import { DeviceData, SensorReading } from '@/types/device';
+import { db } from '../config/firebase';
+import { DeviceData, SensorReading } from '../types/device';
 
 // Firestore collection references
 const devicesCollection = collection(db, 'devices');

@@ -2,10 +2,14 @@ const { getDefaultConfig } = require('expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Force Metro to resolve React to the same instance
-config.resolver.extraNodeModules = {
-  'react': require.resolve('react'),
-  'react-native': require.resolve('react-native')
+// Remove any potential React resolution issues
+config.resolver.sourceExts = process.env.RN_SRC_EXT
+  ? [...process.env.RN_SRC_EXT.split(',').concat(config.resolver.sourceExts), 'mjs']
+  : [...config.resolver.sourceExts, 'mjs'];
+
+// Ensure proper symlink resolution
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  return context.resolveRequest(context, moduleName, platform);
 };
 
 module.exports = config;

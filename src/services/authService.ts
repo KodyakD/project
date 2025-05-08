@@ -1,28 +1,17 @@
-import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  sendPasswordResetEmail,
-  confirmPasswordReset,
-  User,
-  UserCredential,
-  onAuthStateChanged,
-  signInWithCustomToken,
-  signInAnonymously,
-  applyActionCode,
-  fetchSignInMethodsForEmail,
-  GoogleAuthProvider
-} from 'firebase/auth';
+import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import * as SecureStore from 'expo-secure-store';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
 import { Platform } from 'react-native';
 import { UserRole } from '../constants/roles';
 import tokenService from './tokenService';
 import * as Linking from 'expo-linking';
-import { auth, db as firestore } from '../config/firebase';
 import axios from 'axios';
+
+// Register for AuthSession redirect
+WebBrowser.maybeCompleteAuthSession();
 
 // Re-export the UserRole type so it can be imported from this file
 export { UserRole };
@@ -62,37 +51,35 @@ export type AuthState = {
  */
 class AuthService {
   // Current user state
-  private user: User | null = null;
+  private user: FirebaseAuthTypes.User | null = null;
   private userData: UserData | null = null;
   private authStateListeners: ((state: AuthState) => void)[] = [];
 
   constructor() {
     // Initialize auth state listener
     this.initAuthStateListener();
-    
-    // Note: GoogleSignin initialization moved to a separate method that can be called when needed
   }
 
   /**
    * Initialize the authentication state listener
    */
   private initAuthStateListener(): void {
-    onAuthStateChanged(auth, async (firebaseUser) => {
+    auth().onAuthStateChanged(async (firebaseUser) => {
       this.user = firebaseUser;
-      
+
       if (firebaseUser) {
         // User is signed in
         try {
           // Get Firebase ID token for API authentication
           const token = await firebaseUser.getIdToken();
           const refreshToken = firebaseUser.refreshToken || '';
-          
+
           // Store tokens using tokenService
           await tokenService.setTokens(token, refreshToken);
-          
+
           // Fetch user data from Firestore
           await this.fetchUserData(firebaseUser.uid);
-          
+
           // Notify listeners
           this.notifyAuthStateListeners();
         } catch (error) {
@@ -102,7 +89,7 @@ class AuthService {
         // User is signed out
         this.userData = null;
         await tokenService.clearTokens();
-        
+
         // Notify listeners
         this.notifyAuthStateListeners();
       }
@@ -119,8 +106,8 @@ class AuthService {
       isAnonymous: this.user?.isAnonymous || false,
       isAuthenticated: !!this.user,
     };
-    
-    this.authStateListeners.forEach(listener => {
+
+    this.authStateListeners.forEach((listener) => {
       try {
         listener(authState);
       } catch (error) {
@@ -135,18 +122,18 @@ class AuthService {
    */
   private async fetchUserData(userId: string): Promise<void> {
     try {
-      const userDoc = await getDoc(doc(firestore, 'users', userId));
-      
-      if (userDoc.exists()) {
+      const userDoc = await firestore().collection('users').doc(userId).get();
+
+      if (userDoc.exists) {
         const userData = userDoc.data() as UserData;
         this.userData = userData;
-        
+
         // Store user data locally
         await this.storeUserData(userData);
-        
+
         // Update last login time
-        await updateDoc(doc(firestore, 'users', userId), {
-          lastLoginAt: new Date().toISOString()
+        await firestore().collection('users').doc(userId).update({
+          lastLoginAt: new Date().toISOString(),
         });
       } else {
         // If no user document exists but we have a Firebase user,
@@ -175,39 +162,39 @@ class AuthService {
     password: string
   ): Promise<UserData> {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await auth().signInWithEmailAndPassword(email, password);
       const user = userCredential.user;
-      
+
       // Get fresh ID token
       const idToken = await user.getIdToken(true);
       const refreshToken = user.refreshToken || '';
-      
+
       // Store tokens using tokenService
       await tokenService.setTokens(idToken, refreshToken);
-      
+
       // Get or create user data
       let userData = await this.getUserData(user.uid);
       if (!userData) {
         userData = this.firebaseUserToUserData(user);
         await this.createUserData(userData);
       }
-      
+
       // Update last login time
-      await updateDoc(doc(firestore, 'users', user.uid), {
-        lastLoginAt: new Date().toISOString()
+      await firestore().collection('users').doc(user.uid).update({
+        lastLoginAt: new Date().toISOString(),
       });
-      
+
       // Store locally
       this.userData = userData;
       await this.storeUserData(userData);
-      
+
       return userData;
     } catch (error: any) {
       console.error('Login error:', error);
-      
+
       // Provide user-friendly error messages
       let errorMessage = 'Login failed. Please check your credentials and try again.';
-      
+
       if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         errorMessage = 'Invalid email or password.';
       } else if (error.code === 'auth/too-many-requests') {
@@ -217,7 +204,7 @@ class AuthService {
       } else if (error.code === 'auth/requires-recent-login') {
         errorMessage = 'Please sign in again to continue.';
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -237,19 +224,19 @@ class AuthService {
   ): Promise<UserData> {
     try {
       // Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await auth().createUserWithEmailAndPassword(email, password);
       const user = userCredential.user;
-      
+
       // Update profile
-      await updateProfile(user, { displayName });
-      
+      await user.updateProfile({ displayName });
+
       // Get fresh ID token
       const idToken = await user.getIdToken(true);
       const refreshToken = user.refreshToken || '';
-      
+
       // Store tokens using tokenService
       await tokenService.setTokens(idToken, refreshToken);
-      
+
       // Create user data
       const userData: UserData = {
         uid: user.uid,
@@ -263,21 +250,21 @@ class AuthService {
         createdAt: new Date().toISOString(),
         lastLoginAt: new Date().toISOString(),
       };
-      
+
       // Store in Firestore
       await this.createUserData(userData);
-      
+
       // Store locally
       this.userData = userData;
       await this.storeUserData(userData);
-      
+
       return userData;
     } catch (error: any) {
       console.error('Registration error:', error);
-      
+
       // Provide user-friendly error messages
       let errorMessage = 'Registration failed. Please try again.';
-      
+
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'This email is already registered. Please log in or use a different email.';
       } else if (error.code === 'auth/invalid-email') {
@@ -285,7 +272,7 @@ class AuthService {
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password is too weak. Please choose a stronger password.';
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -296,11 +283,11 @@ class AuthService {
   public async signOut(): Promise<void> {
     try {
       // Sign out from Firebase Auth
-      await signOut(auth);
-      
+      await auth().signOut();
+
       // Clear tokens using tokenService
       await tokenService.clearTokens();
-      
+
       // Clear user data
       this.userData = null;
       await AsyncStorage.removeItem(USER_DATA_KEY);
@@ -316,18 +303,18 @@ class AuthService {
    */
   public async sendPasswordResetEmail(email: string): Promise<void> {
     try {
-      await sendPasswordResetEmail(auth, email);
+      await auth().sendPasswordResetEmail(email);
     } catch (error: any) {
       console.error('Password reset error:', error);
-      
+
       let errorMessage = 'Failed to send password reset email.';
-      
+
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'No account found with this email address.';
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Invalid email address.';
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -339,18 +326,18 @@ class AuthService {
    */
   public async confirmPasswordReset(code: string, newPassword: string): Promise<void> {
     try {
-      await confirmPasswordReset(auth, code, newPassword);
+      await auth().confirmPasswordReset(code, newPassword);
     } catch (error: any) {
       console.error('Confirm password reset error:', error);
-      
+
       let errorMessage = 'Failed to reset password.';
-      
+
       if (error.code === 'auth/invalid-action-code') {
         errorMessage = 'Invalid or expired reset code.';
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password is too weak. Please choose a stronger password.';
       }
-      
+
       throw new Error(errorMessage);
     }
   }
@@ -365,21 +352,21 @@ class AuthService {
       if (!isTokenExpired) {
         return tokenService.getAccessToken();
       }
-      
+
       // Get current user from Firebase Auth
-      const user = auth.currentUser;
+      const user = auth().currentUser;
       if (!user) {
         console.error('No user found when refreshing token');
         return null;
       }
-      
+
       // Force refresh the token
       const newToken = await user.getIdToken(true);
       const refreshToken = user.refreshToken || '';
-      
+
       // Store the new tokens
       await tokenService.setTokens(newToken, refreshToken);
-      
+
       return newToken;
     } catch (error) {
       console.error('Token refresh error:', error);
@@ -397,33 +384,33 @@ class AuthService {
       // Parse QR code data
       // Format is expected to be something like: "GUEST:UNIVERSITY:timestamp:token"
       const parts = qrData.split(':');
-      
+
       if (parts.length !== 4 || parts[0] !== 'GUEST') {
         throw new Error('Invalid QR code format');
       }
-      
+
       const type = parts[1];
       const timestamp = parseInt(parts[2]);
       const token = parts[3];
-      
+
       // Check if QR code is expired (valid for 5 minutes)
       const now = Date.now();
       if (now - timestamp > 5 * 60 * 1000) {
         throw new Error('QR code has expired');
       }
-      
+
       // Sign in with custom token (token should be created by your backend)
       try {
-        const userCredential = await signInWithCustomToken(auth, token);
+        const userCredential = await auth().signInWithCustomToken(token);
         const user = userCredential.user;
-        
+
         // Get fresh ID token
         const idToken = await user.getIdToken(true);
         const refreshToken = user.refreshToken || '';
-        
+
         // Store tokens
         await tokenService.setTokens(idToken, refreshToken);
-        
+
         // Get or create user data
         let userData = await this.getUserData(user.uid);
         if (!userData) {
@@ -439,20 +426,20 @@ class AuthService {
             createdAt: new Date().toISOString(),
             lastLoginAt: new Date().toISOString(),
           };
-          
+
           await this.createUserData(userData);
         } else {
           // Update last login time
           await this.updateUserData({
             uid: user.uid,
-            lastLoginAt: new Date().toISOString()
+            lastLoginAt: new Date().toISOString(),
           });
         }
-        
+
         // Store locally
         this.userData = userData;
         await this.storeUserData(userData);
-        
+
         return userData;
       } catch (error) {
         console.error('Error signing in with custom token:', error);
@@ -473,16 +460,16 @@ class AuthService {
     if (this.userData) {
       return this.userData;
     }
-    
+
     // Try to get user data from local storage
     const storedData = await this.getStoredUserData();
     if (storedData) {
       this.userData = storedData;
       return storedData;
     }
-    
+
     // If we have a Firebase user but no data, fetch from Firestore
-    const user = auth.currentUser;
+    const user = auth().currentUser;
     if (user) {
       try {
         await this.fetchUserData(user.uid);
@@ -492,7 +479,7 @@ class AuthService {
         return null;
       }
     }
-    
+
     return null;
   }
 
@@ -503,11 +490,11 @@ class AuthService {
    */
   public async hasRole(roles: UserRole | UserRole[]): Promise<boolean> {
     const userData = await this.getCurrentUser();
-    
+
     if (!userData) {
       return false;
     }
-    
+
     const rolesToCheck = Array.isArray(roles) ? roles : [roles];
     return rolesToCheck.includes(userData.role);
   }
@@ -518,12 +505,88 @@ class AuthService {
    */
   public async getAccessToken(): Promise<string | null> {
     const isTokenExpired = await tokenService.isTokenExpired();
-    
+
     if (isTokenExpired) {
       return this.refreshToken();
     }
-    
+
     return tokenService.getAccessToken();
+  }
+
+  /**
+   * Sign in with Google
+   * @returns UserData for the authenticated user
+   */
+  public async signInWithGoogle(): Promise<UserData> {
+    try {
+      // Configure Google authentication request
+      const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
+      const clientId =
+        Platform.OS === 'ios'
+          ? 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com' // Replace with actual iOS client ID
+          : 'YOUR_ANDROID_CLIENT_ID.apps.googleusercontent.com'; // Replace with actual Android client ID
+
+      // Create an AuthRequest instance
+      const request = new AuthSession.AuthRequest({
+        clientId,
+        scopes: ['profile', 'email'],
+        redirectUri: redirectUrl,
+      });
+
+      // Create a discovery document for Google OAuth
+      const discovery = {
+        authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenEndpoint: 'https://oauth2.googleapis.com/token',
+        revocationEndpoint: 'https://oauth2.googleapis.com/revoke',
+      };
+
+      // Start the authentication flow
+      const result = await request.promptAsync(discovery);
+
+      if (result.type !== 'success') {
+        throw new Error('Google sign in was cancelled or failed');
+      }
+
+      // Get the access token from the result
+      const { params } = result;
+      const accessToken = params.access_token;
+
+      // Create a credential from the access token
+      const credential = auth.GoogleAuthProvider.credential(null, accessToken);
+
+      // Sign in to Firebase with the credential
+      const userCredential = await auth().signInWithCredential(credential);
+      const user = userCredential.user;
+
+      // Get fresh ID token
+      const idToken = await user.getIdToken(true);
+      const refreshToken = user.refreshToken || '';
+
+      // Store tokens using tokenService
+      await tokenService.setTokens(idToken, refreshToken);
+
+      // Get or create user data
+      let userData = await this.getUserData(user.uid);
+      if (!userData) {
+        userData = this.firebaseUserToUserData(user);
+        await this.createUserData(userData);
+      }
+
+      // Update last login time
+      await this.updateUserData({
+        uid: user.uid,
+        lastLoginAt: new Date().toISOString(),
+      });
+
+      // Store locally
+      this.userData = userData;
+      await this.storeUserData(userData);
+
+      return userData;
+    } catch (error: any) {
+      console.error('Google sign in error:', error);
+      throw new Error('Failed to sign in with Google. Please try again.');
+    }
   }
 
   /**
@@ -559,9 +622,9 @@ class AuthService {
    */
   private async getUserData(uid: string): Promise<UserData | null> {
     try {
-      const userDoc = await getDoc(doc(firestore, 'users', uid));
-      
-      if (userDoc.exists()) {
+      const userDoc = await firestore().collection('users').doc(uid).get();
+
+      if (userDoc.exists) {
         return userDoc.data() as UserData;
       } else {
         console.warn(`User document not found for ID: ${uid}`);
@@ -579,10 +642,10 @@ class AuthService {
    */
   private async createUserData(userData: UserData): Promise<void> {
     try {
-      await setDoc(doc(firestore, 'users', userData.uid), {
+      await firestore().collection('users').doc(userData.uid).set({
         ...userData,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: firestore.FieldValue.serverTimestamp(),
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       });
     } catch (error) {
       console.error('Error creating user data:', error);
@@ -596,9 +659,9 @@ class AuthService {
    */
   private async updateUserData(userData: Partial<UserData> & { uid: string }): Promise<void> {
     try {
-      await updateDoc(doc(firestore, 'users', userData.uid), {
+      await firestore().collection('users').doc(userData.uid).update({
         ...userData,
-        updatedAt: serverTimestamp()
+        updatedAt: firestore.FieldValue.serverTimestamp(),
       });
     } catch (error) {
       console.error('Error updating user data:', error);
@@ -611,7 +674,7 @@ class AuthService {
    * @param user Firebase user
    * @returns UserData object
    */
-  private firebaseUserToUserData(user: User): UserData {
+  private firebaseUserToUserData(user: FirebaseAuthTypes.User): UserData {
     return {
       uid: user.uid,
       email: user.email,
@@ -647,24 +710,24 @@ class AuthService {
    */
   public addAuthStateListener(listener: (state: AuthState) => void): () => void {
     this.authStateListeners.push(listener);
-    
+
     // Call immediately with current state
     const currentState: AuthState = {
       user: this.userData,
       initialized: true,
       isAnonymous: this.user?.isAnonymous || false,
-      isAuthenticated: !!this.user
+      isAuthenticated: !!this.user,
     };
-    
+
     try {
       listener(currentState);
     } catch (error) {
       console.error('Error in auth state listener:', error);
     }
-    
+
     // Return function to remove listener
     return () => {
-      this.authStateListeners = this.authStateListeners.filter(l => l !== listener);
+      this.authStateListeners = this.authStateListeners.filter((l) => l !== listener);
     };
   }
 }

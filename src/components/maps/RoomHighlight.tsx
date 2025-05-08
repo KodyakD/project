@@ -1,9 +1,9 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useColorScheme } from 'react-native';
-import Colors from '@/constants/Colors';
-import { roomCoordinates } from '@/data/roomCoordinates';
-import { FloorType } from '@/types/map.types';
+import Colors from '../../constants/Colors';
+import { roomCoordinates } from '../../data/roomCoordinates';
+import { FloorType } from '../../types/map.types';
 
 interface RoomHighlightProps {
   floorId?: FloorType;

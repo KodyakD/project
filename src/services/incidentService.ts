@@ -1,35 +1,19 @@
-import {
-  collection,
-  addDoc,
-  updateDoc,
-  doc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  Timestamp,
-  getDoc,
-  serverTimestamp,
-  limit,
-  startAfter,
-  arrayUnion,
-  DocumentSnapshot
-} from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
-import { FloorType } from '@/types/map.types';
+import firestore from '@react-native-firebase/firestore';
+import auth from '@react-native-firebase/auth';
+import { FloorType } from '../types/map.types';
 import { Alert } from 'react-native';
 import apiClient from './apiClient';
-import { Incident, IncidentStatus, IncidentType } from '../types';
+import { IncidentStatus, IncidentType } from '../types';
 import storageService from './storageService';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
-import { handleApiError } from '@/utils/errorHandling';
-// Replace import from mediaService
+import { handleApiError } from '../utils/errorHandling';
+// Import from mediaService
 import { processQueuedUploads, MediaFile } from './mediaService';
 
-const incidentsCollection = collection(db, 'incidents');
+// Collection references
+const incidentsCollection = firestore().collection('incidents');
 const INCIDENTS_ENDPOINT = '/incidents';
 const MEDIA_ENDPOINT = '/media';
 
@@ -57,11 +41,11 @@ export interface Incident {
     name: string;
   };
   mediaUrls?: string[];
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: any; // firestore timestamp
+  updatedAt: any; // firestore timestamp
   statusHistory?: {
     status: IncidentStatus;
-    timestamp: Timestamp;
+    timestamp: any; // firestore timestamp
     updatedBy: {
       id: string;
       name: string;
@@ -161,12 +145,12 @@ const getOfflineIncidents = async (): Promise<OfflineIncident[]> => {
  */
 export const createIncident = async (incident: Omit<Incident, 'id' | 'createdAt' | 'updatedAt' | 'statusHistory'>): Promise<string> => {
   try {
-    const currentUser = auth.currentUser;
+    const currentUser = auth().currentUser;
     if (!currentUser) {
       throw new Error('User must be logged in to report an incident');
     }
 
-    const now = Timestamp.now();
+    const now = firestore.Timestamp.now();
     
     // Create status history with initial status
     const statusHistory = [{
@@ -191,7 +175,7 @@ export const createIncident = async (incident: Omit<Incident, 'id' | 'createdAt'
     };
 
     // Add document to collection
-    const docRef = await addDoc(incidentsCollection, incidentData);
+    const docRef = await incidentsCollection.add(incidentData);
     return docRef.id;
   } catch (error) {
     console.error('Error creating incident:', error);
@@ -482,67 +466,67 @@ export const getIncidents = async (
     severity?: IncidentSeverity | IncidentSeverity[];
   },
   limitCount: number = 50,
-  lastVisible?: DocumentSnapshot
+  lastVisible?: any // firestore document
 ): Promise<{
   incidents: Incident[];
-  lastVisible: DocumentSnapshot | null;
+  lastVisible: any | null;
 }> => {
   try {
-    let q = query(incidentsCollection, orderBy('createdAt', 'desc'));
+    let query = incidentsCollection.orderBy('createdAt', 'desc');
     
     // Apply filters
     if (filters) {
       if (filters.status) {
         if (Array.isArray(filters.status)) {
-          q = query(q, where('status', 'in', filters.status));
+          query = query.where('status', 'in', filters.status);
         } else {
-          q = query(q, where('status', '==', filters.status));
+          query = query.where('status', '==', filters.status);
         }
       }
       
       if (filters.buildingId) {
-        q = query(q, where('location.buildingId', '==', filters.buildingId));
+        query = query.where('location.buildingId', '==', filters.buildingId);
       }
       
       if (filters.floorId) {
-        q = query(q, where('location.floorId', '==', filters.floorId));
+        query = query.where('location.floorId', '==', filters.floorId);
       }
       
       if (filters.reporterId) {
-        q = query(q, where('reporterId', '==', filters.reporterId));
+        query = query.where('reporterId', '==', filters.reporterId);
       }
       
       if (filters.assignedToId) {
-        q = query(q, where('assignedTo.id', '==', filters.assignedToId));
+        query = query.where('assignedTo.id', '==', filters.assignedToId);
       }
       
       if (filters.type) {
         if (Array.isArray(filters.type)) {
-          q = query(q, where('type', 'in', filters.type));
+          query = query.where('type', 'in', filters.type);
         } else {
-          q = query(q, where('type', '==', filters.type));
+          query = query.where('type', '==', filters.type);
         }
       }
       
       if (filters.severity) {
         if (Array.isArray(filters.severity)) {
-          q = query(q, where('severity', 'in', filters.severity));
+          query = query.where('severity', 'in', filters.severity);
         } else {
-          q = query(q, where('severity', '==', filters.severity));
+          query = query.where('severity', '==', filters.severity);
         }
       }
     }
     
     // Apply pagination
     if (lastVisible) {
-      q = query(q, startAfter(lastVisible));
+      query = query.startAfter(lastVisible);
     }
     
     // Apply limit
-    q = query(q, limit(limitCount));
+    query = query.limit(limitCount);
     
     // Execute query
-    const snapshot = await getDocs(q);
+    const snapshot = await query.get();
     const incidents: Incident[] = [];
     
     snapshot.forEach((doc) => {
@@ -569,12 +553,11 @@ export const getIncidents = async (
  */
 export const getActiveIncidents = async (): Promise<Incident[]> => {
   try {
-    const q = query(
-      incidentsCollection,
-      where('status', 'in', ['reported', 'in-progress']),
-      orderBy('reportedAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
+    const snapshot = await incidentsCollection
+      .where('status', 'in', ['reported', 'in-progress'])
+      .orderBy('reportedAt', 'desc')
+      .get();
+      
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -592,18 +575,21 @@ export const subscribeToIncidents = (
   callback: (incidents: Incident[]) => void
 ): (() => void) => {
   try {
-    const q = query(incidentsCollection, orderBy('reportedAt', 'desc'));
-    return onSnapshot(q, (snapshot) => {
-      const incidents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Incident[];
-      callback(incidents);
-    },
-    (error) => {
-      console.error('Error in incidents subscription:', error);
-      callback([]);
-    });
+    return incidentsCollection
+      .orderBy('reportedAt', 'desc')
+      .onSnapshot(
+        (snapshot) => {
+          const incidents = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Incident[];
+          callback(incidents);
+        },
+        (error) => {
+          console.error('Error in incidents subscription:', error);
+          callback([]);
+        }
+      );
   } catch (error) {
     console.error('Error setting up incidents subscription:', error);
     return () => {};
@@ -615,13 +601,12 @@ export const subscribeToIncidents = (
  */
 export const getIncidentsByFloor = async (floor: FloorType): Promise<Incident[]> => {
   try {
-    const q = query(
-      incidentsCollection,
-      where('location.floor', '==', floor),
-      where('status', 'in', ['reported', 'in-progress']),
-      orderBy('reportedAt', 'desc')
-    );
-    const snapshot = await getDocs(q);
+    const snapshot = await incidentsCollection
+      .where('location.floor', '==', floor)
+      .where('status', 'in', ['reported', 'in-progress'])
+      .orderBy('reportedAt', 'desc')
+      .get();
+      
     return snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -640,23 +625,23 @@ export const subscribeToFloorIncidents = (
   callback: (incidents: Incident[]) => void
 ): (() => void) => {
   try {
-    const q = query(
-      incidentsCollection,
-      where('location.floor', '==', floor),
-      where('status', 'in', ['reported', 'in-progress']),
-      orderBy('reportedAt', 'desc')
-    );
-    return onSnapshot(q, (snapshot) => {
-      const incidents = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Incident[];
-      callback(incidents);
-    },
-    (error) => {
-      console.error(`Error in floor ${floor} incidents subscription:`, error);
-      callback([]);
-    });
+    return incidentsCollection
+      .where('location.floor', '==', floor)
+      .where('status', 'in', ['reported', 'in-progress'])
+      .orderBy('reportedAt', 'desc')
+      .onSnapshot(
+        (snapshot) => {
+          const incidents = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Incident[];
+          callback(incidents);
+        },
+        (error) => {
+          console.error(`Error in floor ${floor} incidents subscription:`, error);
+          callback([]);
+        }
+      );
   } catch (error) {
     console.error(`Error setting up floor ${floor} incidents subscription:`, error);
     return () => {};
@@ -668,10 +653,9 @@ export const subscribeToFloorIncidents = (
  */
 export const getIncident = async (incidentId: string): Promise<Incident | null> => {
   try {
-    const docRef = doc(db, 'incidents', incidentId);
-    const docSnap = await getDoc(docRef);
+    const docSnap = await incidentsCollection.doc(incidentId).get();
     
-    if (!docSnap.exists()) {
+    if (!docSnap.exists) {
       return null;
     }
     
@@ -691,12 +675,12 @@ export const updateIncidentStatus = async (
   notes?: string
 ): Promise<void> => {
   try {
-    const currentUser = auth.currentUser;
+    const currentUser = auth().currentUser;
     if (!currentUser) {
       throw new Error('User must be logged in to update an incident');
     }
     
-    const now = Timestamp.now();
+    const now = firestore.Timestamp.now();
     
     // Create new status history entry
     const statusHistoryEntry = {
@@ -710,10 +694,10 @@ export const updateIncidentStatus = async (
     };
     
     // Update document
-    await updateDoc(doc(db, 'incidents', incidentId), {
+    await incidentsCollection.doc(incidentId).update({
       status,
       updatedAt: now,
-      statusHistory: arrayUnion(statusHistoryEntry)
+      statusHistory: firestore.FieldValue.arrayUnion(statusHistoryEntry)
     });
   } catch (error) {
     console.error('Error updating incident status:', error);
@@ -731,15 +715,15 @@ export const assignIncident = async (
   assigneeName: string
 ): Promise<void> => {
   try {
-    const currentUser = auth.currentUser;
+    const currentUser = auth().currentUser;
     if (!currentUser) {
       throw new Error('User must be logged in to assign an incident');
     }
     
-    const now = Timestamp.now();
+    const now = firestore.Timestamp.now();
     
     // Update document
-    await updateDoc(doc(db, 'incidents', incidentId), {
+    await incidentsCollection.doc(incidentId).update({
       assignedTo: {
         id: assigneeId,
         name: assigneeName
@@ -763,16 +747,16 @@ export const addIncidentMedia = async (
   if (!mediaUrls.length) return;
   
   try {
-    const currentUser = auth.currentUser;
+    const currentUser = auth().currentUser;
     if (!currentUser) {
       throw new Error('User must be logged in to add media to an incident');
     }
     
-    const now = Timestamp.now();
+    const now = firestore.Timestamp.now();
     
     // Update document by adding new URLs to the existing array
-    await updateDoc(doc(db, 'incidents', incidentId), {
-      mediaUrls: arrayUnion(...mediaUrls),
+    await incidentsCollection.doc(incidentId).update({
+      mediaUrls: firestore.FieldValue.arrayUnion(...mediaUrls),
       updatedAt: now
     });
   } catch (error) {
@@ -790,10 +774,9 @@ export const subscribeToIncident = (
   callback: (incident: Incident | null) => void
 ): () => void => {
   // Create listener
-  const unsubscribe = onSnapshot(
-    doc(db, 'incidents', incidentId),
+  return incidentsCollection.doc(incidentId).onSnapshot(
     (docSnapshot) => {
-      if (docSnapshot.exists()) {
+      if (docSnapshot.exists) {
         const incident = { id: docSnapshot.id, ...docSnapshot.data() } as Incident;
         callback(incident);
       } else {
@@ -805,9 +788,6 @@ export const subscribeToIncident = (
       Alert.alert('Connection Error', 'There was an error connecting to the incident data.');
     }
   );
-  
-  // Return unsubscribe function
-  return unsubscribe;
 };
 
 /**
@@ -1240,8 +1220,9 @@ const incidentService = {
       console.error('Error submitting offline drafts:', error);
     }
   },
-  subscribeToIncident, // Add this line to include the function in the default export
-  
+
+  // Export direct functions for advanced usage
+  subscribeToIncident,
   getIncidentDraftById,
   getIncidentDrafts,
   deleteIncidentDraft,

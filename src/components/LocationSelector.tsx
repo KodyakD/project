@@ -13,7 +13,7 @@ import {
   Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { theme } from '../constants/theme';
 import locationService, { Building, Floor, Location } from '../services/locationService';
 import MapView from './MapView';
 import { useFloorMap } from '../hooks/useFloorMap';

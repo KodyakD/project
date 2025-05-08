@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
-import { CheckCircle, AlertCircle, AlertTriangle, Info, X } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from './ThemeContext';
 
 // Types
@@ -190,7 +190,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
             </View>
 
             <TouchableOpacity style={styles.closeButton} onPress={() => hideToast()}>
-              <X size={16} color={colors.textSecondary} />
+              <Feather name="x" size={16} color={colors.textSecondary} />
             </TouchableOpacity>
           </Animated.View>
         </View>
@@ -204,14 +204,14 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
 
     switch (options.type) {
       case 'success':
-        return <CheckCircle size={iconSize} color={iconColor} />;
+        return <Feather name="check-circle" size={iconSize} color={iconColor} />;
       case 'error':
-        return <AlertCircle size={iconSize} color={iconColor} />;
+        return <Feather name="alert-circle" size={iconSize} color={iconColor} />;
       case 'warning':
-        return <AlertTriangle size={iconSize} color={iconColor} />;
+        return <Feather name="alert-triangle" size={iconSize} color={iconColor} />;
       case 'info':
       default:
-        return <Info size={iconSize} color={iconColor} />;
+        return <Feather name="info" size={iconSize} color={iconColor} />;
     }
   }
 

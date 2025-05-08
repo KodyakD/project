@@ -13,10 +13,10 @@ import { useNavigation } from '@react-navigation/native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, FontAwesome5 } from '@expo/vector-icons';
-import { subscribeToIncidents, Incident, IncidentSeverity } from '@/services/incidentService';
-import { formatDate } from '@/utils/dateUtils';
-import { useAuth } from '@/hooks/useAuth';
-import Colors from '@/constants/Colors';
+import { subscribeToIncidents, Incident, IncidentSeverity } from '../../services/incidentService';
+import { formatDate } from '../../utils/dateUtils';
+import { useAuth } from '../../hooks/useAuth';
+import Colors from '../../constants/Colors';
 
 const IncidentsListScreen = () => {
   const navigation = useNavigation();

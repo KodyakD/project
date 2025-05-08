@@ -6,7 +6,7 @@ import { useLocation } from '../../services/locationService';
 import { usePermissions } from '../../context/PermissionContext';
 import Colors from '../../constants/Colors';
 import { FLOORS } from '../../constants/floors';
-import { FloorType } from '@/types/map.types';
+import { FloorType } from '../../types/map.types';
 
 interface WhereAmIProps {
   onLocationFound?: (floor: FloorType, x: number, y: number) => void;

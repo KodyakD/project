@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, StatusBar, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ChevronLeft, Bell, Info, Settings } from 'lucide-react-native';
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ThemeToggle from './ThemeToggle';
@@ -93,7 +93,7 @@ export default function Header({
                 onPress={handleBackPress}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <ChevronLeft size={24} color={colors.text} />
+                <Feather name="chevron-left" size={24} color={colors.text} />
               </TouchableOpacity>
             )}
           </View>
@@ -114,7 +114,7 @@ export default function Header({
                 style={styles.iconButton} 
                 onPress={handleNotificationsPress}
               >
-                <Bell size={22} color={colors.text} />
+                <Feather name="bell" size={22} color={colors.text} />
               </TouchableOpacity>
             )}
 
@@ -123,7 +123,7 @@ export default function Header({
                 style={styles.iconButton} 
                 onPress={handleInfoPress}
               >
-                <Info size={22} color={colors.text} />
+                <Feather name="info" size={22} color={colors.text} />
               </TouchableOpacity>
             )}
 
@@ -132,7 +132,7 @@ export default function Header({
                 style={styles.iconButton} 
                 onPress={handleSettingsPress}
               >
-                <Settings size={22} color={colors.text} />
+                <Feather name="settings" size={22} color={colors.text} />
               </TouchableOpacity>
             )}
 
@@ -184,4 +184,4 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 4,
   },
-}); 
+});

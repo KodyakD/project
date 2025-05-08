@@ -1,4 +1,4 @@
-import { FloorType, Room } from '@/types/map.types';
+import { FloorType, Room } from '../types/map.types';
 
 export const roomCoordinates: Record<FloorType, Room[]> = {
   'rdc': [

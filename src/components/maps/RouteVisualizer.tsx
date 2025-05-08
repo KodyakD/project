@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
-import type { FloorMapEvacuationRoute } from '@/services/floorMapService';
+import type { FloorMapEvacuationRoute } from '../../services/floorMapService';
 
 interface RouteVisualizerProps {
   routes: FloorMapEvacuationRoute[];

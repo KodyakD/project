@@ -15,12 +15,12 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Video } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialIcons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
-import { getIncident, updateIncidentStatus, Incident, IncidentStatus } from '@/services/incidentService';
-import { FLOORS } from '@/constants/floors';
-import { formatDate } from '@/utils/dateUtils';
-import { useAuth } from '@/hooks/useAuth';
-import StatusTimeline from '@/components/incidents/StatusTimeline';
-import Colors from '@/constants/Colors';
+import { getIncident, updateIncidentStatus, Incident, IncidentStatus } from '../../services/incidentService';
+import { FLOORS } from '../../constants/floors';
+import { formatDate } from '../../utils/dateUtils';
+import { useAuth } from '../../hooks/useAuth';
+import StatusTimeline from '../../components/incidents/StatusTimeline';
+import Colors from '../../constants/Colors';
 
 interface RouteParams {
   incidentId: string;

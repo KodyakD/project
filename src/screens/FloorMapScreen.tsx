@@ -2,10 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, ActivityIndicator, Text, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapViewer from '@/components/maps/MapViewer';
-import SensorOverlay from '@/components/maps/SensorOverlay';
-import { fetchFloorMap, FloorMap, FloorMapSensorPoint } from '@/services/floorMapService';
-import { getSensorData } from '@/services/sensorService';
+import MapViewer from '../components/maps/MapViewer';
+import SensorOverlay from '../components/maps/SensorOverlay';
+import { fetchFloorMap, FloorMap, FloorMapSensorPoint } from '../services/floorMapService';
+import { getSensorData } from '../services/sensorService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface RouteParams {

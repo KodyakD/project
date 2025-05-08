@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { theme } from '../constants/theme';
 
 export type SeverityLevel = 'low' | 'medium' | 'high' | 'critical';
 

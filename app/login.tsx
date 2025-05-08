@@ -23,21 +23,21 @@ import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import Constants from 'expo-constants';
 
-// Use the default export from AuthContext which is the useAuth hook
-// In login.tsx, use this:
-import { useAuth } from '../src/context/AuthContext'; // Updated to use singular "context"
-import { COLORS, FONTS, SIZES } from '../src/constants';
+// Import auth hook
+import { useAuth } from '../src/context/AuthContext';
+import { COLORS, FONTS, SIZES } from '../src/constants'; 
 import Colors from '../src/constants/Colors';
 
-// Register web browser for SSO redirects
+// Register web browser for SSO redirects (important for OAuth flows)
 WebBrowser.maybeCompleteAuthSession();
 
-// SSO Config (replace with actual values)
+// SSO configuration for university login
 const SSO_CONFIG = {
-  clientId: 'your-client-id',
-  discoveryUrl: 'https://university-sso.example.com/.well-known/openid-configuration',
+  clientId: process.env.EXPO_PUBLIC_SSO_CLIENT_ID || 'your-client-id',
+  discoveryUrl: process.env.EXPO_PUBLIC_SSO_DISCOVERY_URL || 'https://university-sso.example.com/.well-known/openid-configuration',
   scopes: ['openid', 'profile', 'email'],
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
   },
   tagline: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
   },
   tabContainer: {
     flexDirection: 'row',
@@ -123,6 +124,7 @@ const styles = StyleSheet.create({
   },
   rememberMeText: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
   },
   forgotPasswordText: {
     ...FONTS.body3,
@@ -138,14 +140,15 @@ const styles = StyleSheet.create({
   loginButtonText: {
     color: '#FFFFFF',
     ...FONTS.button,
+    fontWeight: FONTS.button.fontWeight as "normal" | "bold" | "400" | "500",
   },
   registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 5,
   },
   registerText: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
   },
   registerLink: {
     ...FONTS.body3,
@@ -155,11 +158,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
-    borderRadius: SIZES.radius,
-    marginBottom: SIZES.margin,
   },
   errorText: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
     marginLeft: 8,
     flex: 1,
   },
@@ -183,50 +185,46 @@ const styles = StyleSheet.create({
     width: 200,
     height: 200,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
-    borderRadius: 16,
-    backgroundColor: 'transparent',
   },
   qrInstructions: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
     textAlign: 'center',
     marginBottom: SIZES.margin * 1.5,
     paddingHorizontal: SIZES.padding,
   },
   rescanButton: {
-    paddingHorizontal: SIZES.padding,
+    backgroundColor: Colors.light.primary,
     paddingVertical: 8,
+    paddingHorizontal: 16,
     borderRadius: SIZES.radius,
   },
   rescanButtonText: {
     ...FONTS.buttonSmall,
+    fontWeight: FONTS.buttonSmall.fontWeight as "normal" | "bold" | "400" | "500",
     color: '#FFFFFF',
-  },
-  cameraContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: SIZES.padding,
   },
   cameraText: {
     ...FONTS.body2,
+    fontWeight: FONTS.body2.fontWeight as "normal" | "bold" | "400" | "500",
     marginTop: SIZES.margin,
     marginBottom: SIZES.margin / 2,
     textAlign: 'center',
   },
   cameraSubtext: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
     textAlign: 'center',
   },
   // SSO styles
   ssoContainer: {
     alignItems: 'center',
-    padding: SIZES.padding,
+    paddingVertical: 20,
   },
   universityLogo: {
     width: 120,
     height: 120,
-    marginBottom: SIZES.margin,
+    marginBottom: 16,
   },
   ssoText: {
     ...FONTS.body2,
@@ -235,27 +233,30 @@ const styles = StyleSheet.create({
   },
   ssoSubtext: {
     ...FONTS.body3,
+    fontWeight: FONTS.body3.fontWeight as "normal" | "bold" | "400" | "500",
     textAlign: 'center',
     marginBottom: SIZES.margin * 1.5,
   },
   ssoButton: {
-    flexDirection: 'row',
-    height: SIZES.buttonHeight,
-    paddingHorizontal: SIZES.padding,
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
     borderRadius: SIZES.radius,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 10,
+    flexDirection: 'row',
   },
   ssoButtonText: {
     color: '#FFFFFF',
     ...FONTS.button,
+    fontWeight: FONTS.button.fontWeight as "normal" | "bold" | "400" | "500",
   },
 });
 
-// Make sure the default export is properly defined
 export default function LoginScreen() {
-  const { login, loginWithQrCode, authState, error, clearError } = useAuth();
+  // Get auth functions and state from our AuthContext
+  const { login, loginWithQrCode, isAuthenticated, signInWithGoogle, error, clearError } = useAuth();
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
   const router = useRouter();
@@ -264,7 +265,6 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loginMethod, setLoginMethod] = useState<'email' | 'qr' | 'sso'>('email');
   
@@ -277,10 +277,10 @@ export default function LoginScreen() {
 
   // Check if already logged in
   useEffect(() => {
-    if (authState.isAuthenticated) {
+    if (isAuthenticated) {
       router.replace('/(tabs)');
     }
-  }, [authState.isAuthenticated, router]);
+  }, [isAuthenticated, router]);
 
   // Request QR code scanner permissions when QR mode is selected
   useEffect(() => {
@@ -321,69 +321,48 @@ export default function LoginScreen() {
 
     try {
       setIsSubmitting(true);
-      clearError();
+      if (clearError) clearError();
       
       await login(email, password);
       setLoginSuccess(true);
     } catch (err) {
       console.error('Login error:', err);
-      // Error is already handled by auth context
+      // No need to handle error here as it's already captured in AuthContext
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle university SSO login
+  // Handle university SSO login - using React Native Firebase credentials
   const handleSsoLogin = async () => {
     try {
       setIsSubmitting(true);
-      clearError();
+      if (clearError) clearError();
       
-      // Create auth request
-      const redirectUri = AuthSession.makeRedirectUri({
-        scheme: Constants.expoConfig?.scheme || 'com.firerescue',
-        path: 'sso-callback',
-      });
-      
-      const discovery = await AuthSession.fetchDiscoveryAsync(SSO_CONFIG.discoveryUrl);
-      
-      const authRequest = new AuthSession.AuthRequest({
-        clientId: SSO_CONFIG.clientId,
-        scopes: SSO_CONFIG.scopes,
-        redirectUri,
-      });
-      
-      // Start auth flow
-      const response = await authRequest.promptAsync(discovery);
-      
-      if (response.type === 'success') {
-        // Extract university ID and token from response
-        const universityId = response.params.sub || '';
-        const token = response.params.id_token || '';
-        
-        // Login with the token
-        await loginWithQrCode(`GUEST:UNIVERSITY:${Date.now()}:${token}`);
-        setLoginSuccess(true);
-      } else {
-        Alert.alert('SSO Login Cancelled', 'University login was cancelled or failed');
-      }
+      // Use Google Sign-In (or other provider) as university sign-in
+      await signInWithGoogle();
+      setLoginSuccess(true);
     } catch (err) {
       console.error('SSO login error:', err);
-      Alert.alert('SSO Login Failed', err instanceof Error ? err.message : 'Failed to login with university SSO');
+      Alert.alert(
+        'SSO Login Failed', 
+        err instanceof Error ? err.message : 'Failed to login with university SSO'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Handle QR code scan
+  // Handle QR code scan for guest login
   const handleBarCodeScanned = async ({ type, data }: { type: string; data: string }) => {
     setScanned(true);
     
     try {
       setIsSubmitting(true);
-      clearError();
+      if (clearError) clearError();
       
-      // Check if QR code has valid format
+      // Check if QR code has valid format for our system
+      // The React Native Firebase SDK version expects format: "GUEST:institution:timestamp:token"
       if (!data.startsWith('GUEST:')) {
         Alert.alert('Invalid QR Code', 'This QR code is not valid for guest login');
         return;
@@ -393,7 +372,10 @@ export default function LoginScreen() {
       setLoginSuccess(true);
     } catch (err) {
       console.error('QR login error:', err);
-      Alert.alert('Login Failed', err instanceof Error ? err.message : 'Failed to login with QR code');
+      Alert.alert(
+        'Login Failed', 
+        err instanceof Error ? err.message : 'Failed to login with QR code'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -407,7 +389,11 @@ export default function LoginScreen() {
           <View style={styles.formContainer}>
             <Text style={[styles.label, { color: colors.text }]}>Email</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              style={[styles.input, { 
+                backgroundColor: colors.card, 
+                color: colors.text, 
+                borderColor: colors.border 
+              }]}
               placeholder="Enter your email"
               placeholderTextColor={colors.textSecondary}
               value={email}
@@ -415,17 +401,24 @@ export default function LoginScreen() {
               autoCapitalize="none"
               keyboardType="email-address"
               editable={!isSubmitting}
+              returnKeyType="next"
             />
             
             <Text style={[styles.label, { color: colors.text }]}>Password</Text>
             <TextInput
-              style={[styles.input, { backgroundColor: colors.card, color: colors.text, borderColor: colors.border }]}
+              style={[styles.input, { 
+                backgroundColor: colors.card, 
+                color: colors.text, 
+                borderColor: colors.border 
+              }]}
               placeholder="Enter your password"
               placeholderTextColor={colors.textSecondary}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
               editable={!isSubmitting}
+              returnKeyType="done"
+              onSubmitEditing={handleEmailLogin}
             />
             
             <View style={styles.rememberForgotRow}>
@@ -512,6 +505,7 @@ export default function LoginScreen() {
               <BarCodeScanner
                 onBarCodeScanned={scanned ? undefined : handleBarCodeScanned}
                 style={StyleSheet.absoluteFillObject}
+                barCodeTypes={[BarCodeScanner.Constants.BarCodeType.qr]}
               />
               <View style={styles.scannerOverlay}>
                 <View style={styles.scannerTarget} />
@@ -597,7 +591,7 @@ export default function LoginScreen() {
           </View>
 
           {/* Login method tabs */}
-          <View style={styles.tabContainer}>
+          <View style={[styles.tabContainer, { borderBottomColor: colors.border }]}>
             <TouchableOpacity
               style={[
                 styles.tab,

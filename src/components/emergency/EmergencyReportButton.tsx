@@ -1,8 +1,8 @@
 import React from 'react';
 import { StyleSheet, Pressable, View, Text, useColorScheme } from 'react-native';
 import { useRouter } from 'expo-router';
-import { TriangleAlert as AlertTriangle } from 'lucide-react-native';
-import Colors from '@/constants/Colors';
+import { Feather } from '@expo/vector-icons';
+import Colors from '../../constants/Colors';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 export default function EmergencyReportButton() {
@@ -43,7 +43,7 @@ export default function EmergencyReportButton() {
             pressed && styles.pressed
           ]}
         >
-          <AlertTriangle color="#FFFFFF" size={24} />
+          <Feather name="alert-triangle" color="#FFFFFF" size={24} />
           <Text style={styles.buttonText}>Report Emergency</Text>
         </Pressable>
       </Animated.View>

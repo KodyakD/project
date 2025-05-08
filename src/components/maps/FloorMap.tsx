@@ -14,7 +14,7 @@ import UserPositionLayer from './UserPositionLayer';
 import { FloorMapSensorPoint } from '../../services/floorMapService';
 import { useIotDeviceData } from '../../hooks/useIotDeviceData';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { FloorType } from '@/types/map.types';
+import { FloorType } from '../../types/map.types';
 
 interface FloorMapProps {
   floorMapId: string;
@@ -51,9 +51,14 @@ export const FloorMap: React.FC<FloorMapProps> = ({
     const loadFloorMap = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
+        // Use the React Native Firebase SDK fetchFloorMap function
         const mapData = await fetchFloorMap(floorMapId);
         if (mapData) {
           setFloorMap(mapData);
+          
+          // Fetch sensor points in a separate call
           const sensorData = await fetchFloorMapSensorPoints(floorMapId);
           setSensors(sensorData);
         } else {
@@ -75,7 +80,8 @@ export const FloorMap: React.FC<FloorMapProps> = ({
       ctx.startScale = scale.value;
     },
     onActive: (event, ctx) => {
-      scale.value = ctx.startScale * event.scale;
+      // Limit minimum and maximum zoom levels
+      scale.value = Math.max(0.5, Math.min(5, ctx.startScale * event.scale));
     },
     onEnd: () => {
       lastScale.value = scale.value;
@@ -119,7 +125,7 @@ export const FloorMap: React.FC<FloorMapProps> = ({
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" color="#0000ff" />
+        <ActivityIndicator size="large" color="#0066cc" />
         <Text style={styles.loadingText}>Loading floor map...</Text>
       </View>
     );
@@ -132,6 +138,16 @@ export const FloorMap: React.FC<FloorMapProps> = ({
       </View>
     );
   }
+
+  // Get the SVG content from the correct property (mapSvg) from the floorMap data
+  const svgContent = floorMap.mapSvg;
+
+  // Handle sensor press with proper id extraction
+  const handleSensorPress = (sensor: FloorMapSensorPoint) => {
+    if (onSensorPress) {
+      onSensorPress(sensor.id);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -155,14 +171,14 @@ export const FloorMap: React.FC<FloorMapProps> = ({
           >
             <Animated.View style={[styles.svgContainer, animatedStyle]}>
               <SvgXml 
-                xml={floorMap.svgContent} 
+                xml={svgContent} 
                 width={floorMap.width} 
                 height={floorMap.height} 
               />
               <SensorOverlay 
                 sensors={sensors} 
                 getDeviceData={getDeviceDataBySensorId}
-                onSensorPress={onSensorPress}
+                onSensorPress={handleSensorPress}
                 scale={scale.value}
               />
             </Animated.View>
@@ -171,7 +187,9 @@ export const FloorMap: React.FC<FloorMapProps> = ({
           {/* User position layer - positioned outside the pan/zoom container so it's always visible */}
           {showUserPosition && (
             <UserPositionLayer
-              floor={floorMap.floor as FloorType}
+              floor={typeof floorMap.floor === 'number' 
+                ? convertNumericFloorToType(floorMap.floor) 
+                : floorMap.floor as FloorType}
               width={floorMap.width}
               height={floorMap.height}
               zoomLevel={scale.value}
@@ -190,6 +208,18 @@ export const FloorMap: React.FC<FloorMapProps> = ({
       </View>
     </SafeAreaView>
   );
+};
+
+// Helper function to convert floor number to FloorType
+const convertNumericFloorToType = (floor: number): FloorType => {
+  switch (floor) {
+    case 0: return 'rdc';
+    case 1: return '1er';
+    case 2: return '2eme';
+    case 3: return '3eme';
+    case 4: return '4eme';
+    default: return 'rdc';
+  }
 };
 
 const styles = StyleSheet.create({

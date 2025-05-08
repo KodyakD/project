@@ -4,7 +4,7 @@ import { useColorScheme } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useLocation } from '../../services/locationService';
 import Colors from '../../constants/Colors';
-import { FloorType } from '@/types/map.types';
+import { FloorType } from '../../types/map.types';
 
 interface UserPositionLayerProps {
   floor: FloorType;

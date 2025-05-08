@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import authService from '../services/authService';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../context/AuthContext';
 
 /**
  * Hook to get and manage auth tokens for API requests

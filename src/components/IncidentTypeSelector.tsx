@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { theme } from '../styles/theme';
+import { theme } from '../constants/theme';
 
 // Define incident types with categories
 export const incidentTypes = {

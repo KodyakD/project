@@ -15,7 +15,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Colors from '../../src/constants/Colors';
 import { router } from 'expo-router';
-import { X, Camera, Flame, CloudFog, Wind, Building, TriangleAlert as AlertTriangle, User, MapPin, Image as ImageIcon, Plus } from 'lucide-react-native';
+// Replace Lucide icons with Expo Vector Icons
+import { Feather, MaterialCommunityIcons, Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import Button from '../../src/components/ui/Button';
@@ -37,14 +38,14 @@ const floors = [
   { id: '4eme', name: '4th Floor' },
 ];
 
-// Incident types
+// Incident types with Expo Vector Icons
 const incidentTypes = [
-  { id: 'fire', name: 'Fire', icon: Flame },
-  { id: 'smoke', name: 'Smoke', icon: CloudFog },
-  { id: 'gas', name: 'Gas Leak', icon: Wind },
-  { id: 'structural', name: 'Structural', icon: Building },
-  { id: 'medical', name: 'Medical', icon: User },
-  { id: 'other', name: 'Other', icon: AlertTriangle },
+  { id: 'fire', name: 'Fire', icon: (props) => <MaterialCommunityIcons name="fire" {...props} /> },
+  { id: 'smoke', name: 'Smoke', icon: (props) => <MaterialCommunityIcons name="weather-fog" {...props} /> },
+  { id: 'gas', name: 'Gas Leak', icon: (props) => <Feather name="wind" {...props} /> },
+  { id: 'structural', name: 'Structural', icon: (props) => <Feather name="home" {...props} /> },
+  { id: 'medical', name: 'Medical', icon: (props) => <Feather name="user" {...props} /> },
+  { id: 'other', name: 'Other', icon: (props) => <Feather name="alert-triangle" {...props} /> },
 ];
 
 // Validation schema
@@ -123,7 +124,7 @@ export default function ReportIncidentScreen() {
             style={styles.closeButton}
             onPress={() => router.back()}
           >
-            <X size={24} color={colors.text} />
+            <Feather name="x" size={24} color={colors.text} />
           </Pressable>
         </View>
         
@@ -201,10 +202,7 @@ export default function ReportIncidentScreen() {
                           ]}
                           onPress={() => setFieldValue('incidentType', type.id)}
                         >
-                          <type.icon 
-                            size={24} 
-                            color={values.incidentType === type.id ? colors.emergencyRed : colors.textSecondary} 
-                          />
+                          {type.icon({ size: 24, color: values.incidentType === type.id ? colors.emergencyRed : colors.textSecondary })}
                           <Text 
                             style={[
                               styles.incidentTypeName,
@@ -402,7 +400,7 @@ export default function ReportIncidentScreen() {
                     
                     <View style={styles.mapLocationSection}>
                       <View style={styles.mapLocationHeader}>
-                        <MapPin size={20} color={colors.emergencyRed} />
+                        <Feather name="map-pin" size={20} color={colors.emergencyRed} />
                         <Text style={[styles.mapLocationTitle, { color: colors.text }]}>
                           Mark Location on Map
                         </Text>
@@ -475,7 +473,7 @@ export default function ReportIncidentScreen() {
                               setFieldValue('images', newImages);
                             }}
                           >
-                            <X size={16} color="#FFFFFF" />
+                            <Feather name="x" size={16} color="#FFFFFF" />
                           </Pressable>
                         </View>
                       ))}
@@ -523,7 +521,7 @@ export default function ReportIncidentScreen() {
                           }
                         }}
                       >
-                        <Plus size={24} color={colors.emergencyRed} />
+                        <Feather name="plus" size={24} color={colors.emergencyRed} />
                         <Text style={[styles.addImageText, { color: colors.emergencyRed }]}>
                           Add Photo
                         </Text>

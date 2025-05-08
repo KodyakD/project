@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import type { FloorMapSafeZone } from '@/services/floorMapService';
+import type { FloorMapSafeZone } from '../../services/floorMapService';
 
 interface SafeZoneOverlayProps {
   safeZones: FloorMapSafeZone[];

@@ -1,18 +1,16 @@
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { storage } from '../config/firebase';
+import storage from '@react-native-firebase/storage';
+import firestore from '@react-native-firebase/firestore';
 import * as FileSystem from 'expo-file-system';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { v4 as uuidv4 } from 'uuid';
 import NetInfo from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
-import * as MediaLibrary from 'expo-media-library';
+import * as MediaLibrary from 'expo-media-library'; 
 import { Asset } from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import uuid from 'react-native-uuid';
 import apiClient from './apiClient';
 import { handleApiError } from '../utils/errorHandling';
-import { db } from '../config/firebase';
-import { doc, updateDoc, arrayUnion, Timestamp } from 'firebase/firestore';
 
 // Queue key for file system
 const MEDIA_UPLOAD_QUEUE_KEY = 'media_upload_queue.json';
@@ -37,18 +35,18 @@ const addMediaToIncident = async (
   if (!mediaUrls.length) return;
 
   try {
-    const now = Timestamp.now();
+    const now = firestore.Timestamp.now();
 
-    // Update document by adding new URLs to the existing array
-    await updateDoc(doc(db, 'incidents', incidentId), {
-      mediaUrls: arrayUnion(...mediaUrls),
+    // Update document by adding new URLs to the existing array using React Native Firebase SDK
+    await firestore().collection('incidents').doc(incidentId).update({
+      mediaUrls: firestore.FieldValue.arrayUnion(...mediaUrls),
       updatedAt: now
     });
   } catch (error) {
     console.error('Error adding media to incident:', error);
     throw error;
   }
-}
+};
 
 interface MediaUploadQueueItem {
   id: string;
@@ -167,50 +165,19 @@ export const uploadIncidentMedia = async (
 
     // Generate unique filename
     const filename = `${uuidv4()}.${uploadUri.split('.').pop()}`;
-    const mimeType = getMimeType(uploadUri);
-
-    // Read file as binary string
-    const fileContent = await FileSystem.readAsStringAsync(uploadUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    // Convert to blob
-    const blob = await fetch(`data:${mimeType};base64,${fileContent}`).then(response =>
-      response.blob()
-    );
-
-    // Create storage reference
-    const storageRef = ref(storage, `incidents/${type}s/${filename}`);
-
-    // Upload file
-    const uploadTask = uploadBytesResumable(storageRef, blob);
-
-    // Wait for upload to complete
-    return new Promise((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        snapshot => {
-          // Progress monitoring can be implemented here if needed
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log(`Upload is ${progress}% done`);
-        },
-        error => {
-          // Handle errors
-          console.error('Upload error:', error);
-          reject(error);
-        },
-        async () => {
-          // Get download URL after successful upload
-          try {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(downloadURL);
-          } catch (error) {
-            console.error('Error getting download URL:', error);
-            reject(error);
-          }
-        }
-      );
-    });
+    
+    // Path in Firebase Storage
+    const storagePath = `incidents/${type}s/${filename}`;
+    
+    // Create reference using React Native Firebase SDK
+    const storageRef = storage().ref(storagePath);
+    
+    // Upload file with React Native Firebase SDK
+    await storageRef.putFile(uploadUri);
+    
+    // Get download URL
+    const downloadURL = await storageRef.getDownloadURL();
+    return downloadURL;
   } catch (error) {
     console.error('Error uploading media:', error);
     return null;

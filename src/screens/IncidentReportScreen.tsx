@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -12,15 +12,16 @@ import {
   Platform
 } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { Picker } from '@react-native-picker/picker';
-import { 
-  createIncident, 
-  IncidentType, 
-  IncidentSeverity 
-} from '../services/incidentService';
+import RNPicker from '@react-native-picker/picker';
+import { createIncidentWithOfflineSupport } from '../services/incidentService';
+import NetInfo from '@react-native-community/netinfo';
+
+// Define types locally
+type IncidentType = 'maintenance' | 'security' | 'safety' | 'environmental' | 'other';
+type IncidentSeverity = 'low' | 'medium' | 'high' | 'critical';
 import { MediaPicker } from '../components/MediaPicker';
-import { LocationSelector } from '../components/LocationSelector';
-import { theme } from '../styles/theme';
+import LocationSelector from '../components/LocationSelector';
+import { theme } from '../constants/theme';
 
 interface IncidentReportScreenParams {
   buildingId?: string;
@@ -31,7 +32,7 @@ interface IncidentReportScreenParams {
 }
 
 export const IncidentReportScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const route = useRoute();
   const params = route.params as IncidentReportScreenParams || {};
 
@@ -49,6 +50,7 @@ export const IncidentReportScreen = () => {
   });
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOffline, setIsOffline] = useState(false);
 
   // Validation state
   const [errors, setErrors] = useState({
@@ -56,6 +58,23 @@ export const IncidentReportScreen = () => {
     description: '',
     location: ''
   });
+
+  // Check network status on component mount
+  useEffect(() => {
+    const checkConnection = async () => {
+      const netInfo = await NetInfo.fetch();
+      setIsOffline(!(netInfo.isConnected && netInfo.isInternetReachable));
+    };
+    
+    checkConnection();
+
+    // Subscribe to network state updates
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsOffline(!(state.isConnected && state.isInternetReachable));
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   const validateForm = () => {
     let isValid = true;
@@ -91,7 +110,7 @@ export const IncidentReportScreen = () => {
 
     setIsSubmitting(true);
     try {
-      // Create incident object
+      // Create incident object with reportedAt field
       const incident = {
         title,
         description,
@@ -99,32 +118,49 @@ export const IncidentReportScreen = () => {
         severity,
         status: 'reported' as const,
         location,
-        mediaUrls
+        mediaUrls,
+        reportedAt: new Date().toISOString() // Add reportedAt field
       };
 
-      // Call service to create incident
-      const incidentId = await createIncident(incident);
+      // Call service to create incident with offline support
+      const incidentId = await createIncidentWithOfflineSupport(incident);
       
-      // Show success message
-      Alert.alert(
-        'Success',
-        'Incident reported successfully',
-        [
-          { 
-            text: 'View Details', 
-            onPress: () => navigation.navigate('IncidentDetail', { incidentId }) 
-          },
-          { 
-            text: 'Report Another', 
-            onPress: () => {
-              setTitle('');
-              setDescription('');
-              setMediaUrls([]);
-              // Keep location, type and severity as they were
+      // Check if the ID is an offline ID
+      const isOfflineId = incidentId.startsWith('offline_');
+      
+      // Show appropriate success message
+      if (isOfflineId) {
+        Alert.alert(
+          'Saved Offline',
+          'Your incident report has been saved offline and will be submitted when you are back online.',
+          [
+            { 
+              text: 'OK', 
+              onPress: () => navigation.goBack()
             }
-          }
-        ]
-      );
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Success',
+          'Incident reported successfully',
+          [
+            { 
+              text: 'View Details', 
+              onPress: () => navigation.navigate('IncidentDetail', { incidentId }) 
+            },
+            { 
+              text: 'Report Another', 
+              onPress: () => {
+                setTitle('');
+                setDescription('');
+                setMediaUrls([]);
+                // Keep location, type and severity as they were
+              }
+            }
+          ]
+        );
+      }
     } catch (error) {
       console.error('Error submitting incident:', error);
       Alert.alert('Error', 'Failed to submit incident. Please try again.');
@@ -144,7 +180,10 @@ export const IncidentReportScreen = () => {
     y: number;
     description?: string;
   }) => {
-    setLocation(newLocation);
+    setLocation({
+      ...newLocation,
+      description: newLocation.description || ''
+    });
     setErrors(prev => ({ ...prev, location: '' }));
   };
 
@@ -156,6 +195,14 @@ export const IncidentReportScreen = () => {
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <Text style={styles.title}>Report an Incident</Text>
+        
+        {isOffline && (
+          <View style={styles.offlineBanner}>
+            <Text style={styles.offlineBannerText}>
+              You're currently offline. Your report will be saved locally and submitted when you're back online.
+            </Text>
+          </View>
+        )}
         
         {/* Title input */}
         <View style={styles.formGroup}>
@@ -194,17 +241,17 @@ export const IncidentReportScreen = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Incident Type *</Text>
           <View style={styles.pickerContainer}>
-            <Picker
+            <RNPicker.Picker
               selectedValue={type}
               onValueChange={(itemValue) => setType(itemValue as IncidentType)}
               style={styles.picker}
             >
-              <Picker.Item label="Maintenance" value="maintenance" />
-              <Picker.Item label="Security" value="security" />
-              <Picker.Item label="Safety" value="safety" />
-              <Picker.Item label="Environmental" value="environmental" />
-              <Picker.Item label="Other" value="other" />
-            </Picker>
+              <RNPicker.Item label="Maintenance" value="maintenance" />
+              <RNPicker.Item label="Security" value="security" />
+              <RNPicker.Item label="Safety" value="safety" />
+              <RNPicker.Item label="Environmental" value="environmental" />
+              <RNPicker.Item label="Other" value="other" />
+            </RNPicker.Picker>
           </View>
         </View>
         
@@ -212,16 +259,16 @@ export const IncidentReportScreen = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Severity *</Text>
           <View style={styles.pickerContainer}>
-            <Picker
+            <RNPicker.Picker
               selectedValue={severity}
               onValueChange={(itemValue) => setSeverity(itemValue as IncidentSeverity)}
               style={styles.picker}
             >
-              <Picker.Item label="Low" value="low" />
-              <Picker.Item label="Medium" value="medium" />
-              <Picker.Item label="High" value="high" />
-              <Picker.Item label="Critical" value="critical" />
-            </Picker>
+              <RNPicker.Item label="Low" value="low" />
+              <RNPicker.Item label="Medium" value="medium" />
+              <RNPicker.Item label="High" value="high" />
+              <RNPicker.Item label="Critical" value="critical" />
+            </RNPicker.Picker>
           </View>
         </View>
         
@@ -229,7 +276,7 @@ export const IncidentReportScreen = () => {
         <View style={styles.formGroup}>
           <Text style={styles.label}>Location *</Text>
           <LocationSelector 
-            initialLocation={location}
+            location={location}
             onLocationSelected={handleLocationSelect}
           />
           {errors.location ? <Text style={styles.errorText}>{errors.location}</Text> : null}
@@ -254,7 +301,9 @@ export const IncidentReportScreen = () => {
           {isSubmitting ? (
             <ActivityIndicator color="#fff" />
           ) : (
-            <Text style={styles.submitButtonText}>Submit Report</Text>
+            <Text style={styles.submitButtonText}>
+              {isOffline ? 'Save Offline' : 'Submit Report'}
+            </Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -276,6 +325,18 @@ const styles = StyleSheet.create({
     marginBottom: 24,
     color: theme.colors.primary
   },
+  offlineBanner: {
+    backgroundColor: '#FEF3C7',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F59E0B',
+  },
+  offlineBannerText: {
+    color: '#92400E',
+    fontSize: 14,
+  },
   formGroup: {
     marginBottom: 16,
   },
@@ -291,7 +352,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.card,
   },
   inputError: {
     borderColor: theme.colors.error,
@@ -303,13 +364,13 @@ const styles = StyleSheet.create({
     padding: 12,
     fontSize: 16,
     minHeight: 100,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.card,
   },
   pickerContainer: {
     borderWidth: 1,
     borderColor: theme.colors.border,
     borderRadius: 8,
-    backgroundColor: theme.colors.surface,
+    backgroundColor: theme.colors.card,
     overflow: 'hidden'
   },
   picker: {
@@ -337,4 +398,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold'
   }
-}); 
+});

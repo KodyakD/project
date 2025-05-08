@@ -5,14 +5,15 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import { useColorScheme } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { sendPasswordResetEmail } from 'firebase/auth';
 
+import { auth } from '../src/config/firebase';
+import { useAuth } from '../src/context/AuthContext';
 import Button from '../src/components/ui/Button';
 import { TextInput } from '../src/components/ui/TextInput';
-import { auth } from '../src/config/firebase';
 import Colors from '../src/constants/Colors';
 
 function ForgotPasswordScreen() {
+  const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,12 +27,17 @@ function ForgotPasswordScreen() {
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     try {
       setLoading(true);
       setError('');
       
-      // Send password reset email using Firebase
-      await sendPasswordResetEmail(auth, email);
+      await resetPassword(email);
       
       setSuccess(true);
       Alert.alert(
@@ -40,9 +46,8 @@ function ForgotPasswordScreen() {
         [{ text: 'OK' }]
       );
     } catch (e: any) {
-      // Don't expose whether an email exists or not for security reasons
       console.error('Password reset error:', e);
-      setSuccess(true); // Still show success even on error for security
+      setSuccess(true);
       Alert.alert(
         'Reset Email Sent',
         'If an account exists with this email, you will receive password reset instructions.',

@@ -1,6 +1,5 @@
-import { collection, doc, getDoc, getDocs, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
-import { db } from '../config/firebase';
-import { FloorType } from '@/types/map.types';
+import firestore from '@react-native-firebase/firestore';
+import { FloorType } from '../types/map.types';
 import { Asset } from 'expo-asset';
 import * as FileSystem from 'expo-file-system';
 import { BUILDING_MAP_CONFIG } from './buildingMapConfig';
@@ -15,7 +14,7 @@ const MAP_ASSETS = {
 };
 
 // Collection reference
-const floorMapsCollection = collection(db, 'floorMaps');
+const floorMapsCollection = firestore().collection('floorMaps');
 
 // Types for map data components
 export interface FloorMapSafeZone {
@@ -48,7 +47,7 @@ export interface FloorMapData {
   safeZones: FloorMapSafeZone[];
   evacuationRoutes: FloorMapEvacuationRoute[];
   sensorPoints: FloorMapSensorPoint[];
-  lastUpdated: Timestamp;
+  lastUpdated: firestore.Timestamp;
   updatedBy?: string;
 }
 
@@ -99,10 +98,10 @@ export interface Building {
  */
 export const getFloorMapData = async (floorId: FloorType): Promise<FloorMapData | null> => {
   try {
-    const docRef = doc(floorMapsCollection, floorId);
-    const docSnap = await getDoc(docRef);
+    const docRef = floorMapsCollection.doc(floorId);
+    const docSnap = await docRef.get();
 
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       return {
         floorId,
         ...docSnap.data()
@@ -115,7 +114,7 @@ export const getFloorMapData = async (floorId: FloorType): Promise<FloorMapData 
       safeZones: [],
       evacuationRoutes: [],
       sensorPoints: [],
-      lastUpdated: Timestamp.now()
+      lastUpdated: firestore.Timestamp.now()
     };
   } catch (error) {
     console.error('Error fetching floor map data:', error);
@@ -128,8 +127,7 @@ export const getFloorMapData = async (floorId: FloorType): Promise<FloorMapData 
  */
 export const getAllFloorMaps = async (): Promise<FloorMapData[]> => {
   try {
-    const q = query(floorMapsCollection);
-    const snapshot = await getDocs(q);
+    const snapshot = await floorMapsCollection.get();
     
     return snapshot.docs.map(doc => ({
       floorId: doc.id as FloorType,
@@ -148,10 +146,10 @@ export const subscribeToFloorMap = (
   floorId: FloorType, 
   callback: (data: FloorMapData) => void
 ): (() => void) => {
-  const docRef = doc(floorMapsCollection, floorId);
+  const docRef = floorMapsCollection.doc(floorId);
   
-  return onSnapshot(docRef, (docSnap) => {
-    if (docSnap.exists()) {
+  return docRef.onSnapshot((docSnap) => {
+    if (docSnap.exists) {
       callback({
         floorId,
         ...docSnap.data()
@@ -163,7 +161,7 @@ export const subscribeToFloorMap = (
         safeZones: [],
         evacuationRoutes: [],
         sensorPoints: [],
-        lastUpdated: Timestamp.now()
+        lastUpdated: firestore.Timestamp.now()
       });
     }
   }, (error) => {
@@ -173,8 +171,8 @@ export const subscribeToFloorMap = (
 
 export const fetchBuildings = async (): Promise<Building[]> => {
   try {
-    const buildingsRef = collection(db, 'buildings');
-    const buildingsSnap = await getDocs(buildingsRef);
+    const buildingsRef = firestore().collection('buildings');
+    const buildingsSnap = await buildingsRef.get();
     
     return buildingsSnap.docs.map(doc => {
       const data = doc.data();
@@ -197,10 +195,10 @@ export const fetchBuildings = async (): Promise<Building[]> => {
 
 export const fetchBuildingById = async (buildingId: string): Promise<Building | null> => {
   try {
-    const buildingRef = doc(db, 'buildings', buildingId);
-    const buildingSnap = await getDoc(buildingRef);
+    const buildingRef = firestore().collection('buildings').doc(buildingId);
+    const buildingSnap = await buildingRef.get();
     
-    if (!buildingSnap.exists()) {
+    if (!buildingSnap.exists) {
       return null;
     }
     
@@ -239,10 +237,10 @@ const parseFloorMapId = (floorMapId: string): { buildingId: string, floorId: Flo
 export const fetchFloorMap = async (floorMapId: string): Promise<FloorMap> => {
   try {
     // First, try to get from Firebase
-    const docRef = doc(db, 'floorMaps', floorMapId);
-    const docSnap = await getDoc(docRef);
+    const docRef = firestore().collection('floorMaps').doc(floorMapId);
+    const docSnap = await docRef.get();
     
-    if (docSnap.exists()) {
+    if (docSnap.exists) {
       const data = docSnap.data();
       return {
         id: docSnap.id,
@@ -330,24 +328,22 @@ export const fetchFloorMap = async (floorMapId: string): Promise<FloorMap> => {
  */
 export const fetchBuildingFloorMaps = async (buildingId: string): Promise<FloorMap[]> => {
   try {
-    const mapsQuery = query(
-      collection(db, 'floorMaps'),
-      where('buildingId', '==', buildingId)
-    );
+    const mapsQuery = firestore()
+      .collection('floorMaps')
+      .where('buildingId', '==', buildingId);
     
-    const mapsSnapshot = await getDocs(mapsQuery);
+    const mapsSnapshot = await mapsQuery.get();
     const maps: FloorMap[] = [];
     
     for (const docSnap of mapsSnapshot.docs) {
       const data = docSnap.data();
       
       // Fetch sensor points for this floor map
-      const sensorsQuery = query(
-        collection(db, 'mapSensorPoints'),
-        where('floorMapId', '==', docSnap.id)
-      );
+      const sensorsQuery = firestore()
+        .collection('mapSensorPoints')
+        .where('floorMapId', '==', docSnap.id);
       
-      const sensorSnapshot = await getDocs(sensorsQuery);
+      const sensorSnapshot = await sensorsQuery.get();
       const sensorPoints: FloorMapSensorPoint[] = [];
       
       sensorSnapshot.forEach(doc => {
@@ -379,9 +375,9 @@ export const fetchBuildingFloorMaps = async (buildingId: string): Promise<FloorM
 
 export const fetchFloorMapRoutes = async (floorMapId: string): Promise<FloorMapRoute[]> => {
   try {
-    const routesRef = collection(db, 'floorMapRoutes');
-    const q = query(routesRef, where('floorMapId', '==', floorMapId));
-    const routesSnap = await getDocs(q);
+    const routesRef = firestore().collection('floorMapRoutes');
+    const q = routesRef.where('floorMapId', '==', floorMapId);
+    const routesSnap = await q.get();
     
     const routes = routesSnap.docs.map(doc => {
       const data = doc.data();
@@ -408,9 +404,9 @@ export const fetchFloorMapRoutes = async (floorMapId: string): Promise<FloorMapR
 
 export const fetchFloorMapSensorPoints = async (floorMapId: string): Promise<FloorMapSensorPoint[]> => {
   try {
-    const sensorsRef = collection(db, 'floorMapSensors');
-    const q = query(sensorsRef, where('floorMapId', '==', floorMapId));
-    const sensorsSnap = await getDocs(q);
+    const sensorsRef = firestore().collection('floorMapSensors');
+    const q = sensorsRef.where('floorMapId', '==', floorMapId);
+    const sensorsSnap = await q.get();
     
     return sensorsSnap.docs.map(doc => {
       const data = doc.data();

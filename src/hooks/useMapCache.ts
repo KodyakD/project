@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import * as FileSystem from 'expo-file-system';
 import { Asset } from 'expo-asset';
-import { FloorType } from '@/types/map.types';
+import { FloorType } from '../types/map.types';
 
 // Map between floor IDs and asset paths
 // Note: Need to ensure these asset files are in the proper location

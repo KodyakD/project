@@ -1,8 +1,7 @@
-import { initializeApp } from 'firebase/app';
-import { initializeAuth, getReactNativePersistence } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import firebase from '@react-native-firebase/app';
+import auth from '@react-native-firebase/auth';
+import firestore from '@react-native-firebase/firestore';
+import storage from '@react-native-firebase/storage';
 import Constants from 'expo-constants';
 
 // Firebase configuration
@@ -15,18 +14,37 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || Constants.expoConfig?.extra?.EXPO_PUBLIC_FIREBASE_APP_ID || '1:381153036555:web:79873a9a3f56e32201ba0e'
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase if it hasn't been initialized yet
+let app;
+if (!firebase.apps.length) {
+  app = firebase.initializeApp(firebaseConfig);
+} else {
+  app = firebase.app();
+}
 
-// Initialize Auth with AsyncStorage persistence
-const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage)
+// Get Firebase services
+const db = firestore();
+const authInstance = auth();
+const storageInstance = storage();
+
+// Enable Firestore offline persistence for better offline experience
+db.settings({
+  persistence: true,  // Enable offline persistence
+  cacheSizeBytes: firestore.CACHE_SIZE_UNLIMITED  // Use unlimited cache size
 });
 
-// Initialize Firestore
-const db = getFirestore(app);
+// Export the Firebase services
+export { 
+  app, 
+  authInstance as auth, 
+  db, 
+  storageInstance as storage 
+};
 
-// Initialize Storage
-const storage = getStorage(app);
-
-export { app, auth, db, storage };
+// Export the Firebase modules to allow for advanced operation
+export { 
+  firebase,
+  auth as authModule,
+  firestore as firestoreModule,
+  storage as storageModule
+};

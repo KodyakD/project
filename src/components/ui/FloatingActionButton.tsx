@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { StyleSheet, TouchableOpacity, View, Text, Animated, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
-import { AlertTriangle } from 'lucide-react-native';
+// Replace lucide import with Expo Vector Icons
+import { Feather } from '@expo/vector-icons';
 import { useTheme } from '../../context/ThemeContext';
 
 interface FloatingActionButtonProps {
@@ -97,7 +98,7 @@ export function FloatingActionButton({
           ]}
           onPress={handlePress}
           activeOpacity={0.8}>
-          {icon || <AlertTriangle size={24} color="white" />}
+          {icon || <Feather name="alert-triangle" size={24} color="white" />}
         </TouchableOpacity>
       </Animated.View>
     </View>

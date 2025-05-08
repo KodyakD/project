@@ -4,7 +4,7 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
+  StyleSheet, 
   TextInput,
   ActivityIndicator,
   RefreshControl,
@@ -17,7 +17,8 @@ import { format } from 'date-fns';
 import { Incident, IncidentStatus, IncidentType } from '../../types';
 import * as incidentService from '../../services/incidentService';
 import { StatusBadge } from '../common/StatusBadge';
-import Colors, { useThemeColor } from '../../constants/Colors';
+import Colors from '../../constants/Colors';
+import { useTheme } from '../../context/ThemeContext';
 
 const SeverityColors = {
   low: '#0EA5E9',     // Blue
@@ -33,6 +34,9 @@ const TypeIcons: Record<IncidentType, any> = {
   safety: 'warning-outline',
   environmental: 'leaf-outline',
   other: 'help-circle-outline',
+  fire: 'flame-outline',
+  gas: 'cloud-outline',
+  smoke: 'cloudy-outline',
 };
 
 // Filter options
@@ -57,13 +61,15 @@ interface IncidentListProps {
   isUserIncidents?: boolean;
 }
 
-// Add this helper function somewhere in your component
+// Helper function to safely format dates with Firebase Timestamp support
 const safelyFormatDate = (dateValue: any) => {
   try {
-    // Make sure we have a valid date
+    // Handle different date formats including Firebase timestamps
     const date = dateValue instanceof Date 
       ? dateValue 
-      : new Date(dateValue);
+      : (typeof dateValue === 'object' && dateValue?.toDate instanceof Function)
+        ? dateValue.toDate() // Handle Firestore Timestamp objects
+        : new Date(dateValue);
       
     // Check if date is valid before formatting
     if (isNaN(date.getTime())) {
@@ -86,7 +92,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   isUserIncidents = false,
 }) => {
   const router = useRouter();
-  const colorScheme = useColorScheme();
+  const { colors } = useTheme();
   
   // State management
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -100,88 +106,26 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   const [searchQuery, setSearchQuery] = useState(initialFilters.search || '');
   const [showFilterOptions, setShowFilterOptions] = useState(false);
   
-  // Add this debug function right after the IncidentList component definition
+  // Debug function for logging incident data during development
   const debugIncident = (incident: any, label: string = "Incident data") => {
-    console.log(`${label}:`, {
-      id: incident.id,
-      title: incident.title,
-      status: incident.status,
-      date: incident.reportedAt || incident.createdAt,
-      fields: Object.keys(incident)
-    });
+    if (__DEV__) {
+      console.log(`${label}:`, {
+        id: incident.id,
+        title: incident.title,
+        status: incident.status,
+        date: incident.reportedAt || incident.createdAt,
+        fields: Object.keys(incident)
+      });
+    }
   };
 
-  // Fetch incidents
-  const fetchIncidents = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      let fetchedIncidents: Incident[] = [];
-      
-      try {
-        if (isUserIncidents) {
-          // Get incidents reported by current user
-          const response = await incidentService.getIncidents({
-            reporterId: 'current'
-          });
-          // Handle different possible response formats
-          if (response && response.incidents && Array.isArray(response.incidents)) {
-            fetchedIncidents = response.incidents;
-          } else if (Array.isArray(response)) {
-            fetchedIncidents = response;
-          } else if (response && typeof response === 'object') {
-            // If response is an object but not in expected format, try to extract incidents
-            fetchedIncidents = Object.values(response).filter(item => 
-              item && typeof item === 'object' && 'id' in item
-            ) as Incident[];
-          }
-        } else {
-          // Get all incidents
-          const response = await incidentService.getIncidents();
-          // Handle different possible response formats
-          if (response && response.incidents && Array.isArray(response.incidents)) {
-            fetchedIncidents = response.incidents;
-          } else if (Array.isArray(response)) {
-            fetchedIncidents = response;
-          } else if (response && typeof response === 'object') {
-            // If response is an object but not in expected format, try to extract incidents
-            fetchedIncidents = Object.values(response).filter(item => 
-              item && typeof item === 'object' && 'id' in item
-            ) as Incident[];
-          }
-        }
-      } catch (fetchError) {
-        console.warn('Error fetching incidents, using cached data:', fetchError);
-        // Don't set error here - just use cached data from real-time updates
-      }
-      
-      console.log(`Fetched ${fetchedIncidents.length} incidents`);
-      
-      // Only update incidents if we actually got some, otherwise keep existing ones
-      if (fetchedIncidents.length > 0) {
-        setIncidents(fetchedIncidents);
-        applyFilters(fetchedIncidents, filters);
-      } else {
-        // Just reapply filters to existing incidents
-        applyFilters(incidents, filters);
-      }
-      
-    } catch (err) {
-      console.error('Error in fetchIncidents:', err);
-      setError('Failed to load incidents. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [isUserIncidents, filters, applyFilters, incidents]);
-  
-  // Apply filters to incidents
+  // Apply filters to incidents - memoized to prevent unnecessary recalculations
   const applyFilters = useCallback((incidentsToFilter: Incident[], currentFilters: IncidentFilter) => {
-    // First, let's log what we're working with
-    console.log(`Applying filters to ${incidentsToFilter.length} incidents`, currentFilters);
-    if (incidentsToFilter.length > 0) {
-      debugIncident(incidentsToFilter[0], "Sample incident");
+    if (__DEV__) {
+      console.log(`Applying filters to ${incidentsToFilter.length} incidents`, currentFilters);
+      if (incidentsToFilter.length > 0) {
+        debugIncident(incidentsToFilter[0], "Sample incident");
+      }
     }
 
     let result = [...incidentsToFilter];
@@ -210,22 +154,26 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     if (currentFilters.dateRange) {
       if (currentFilters.dateRange.start) {
         result = result.filter(incident => {
-          // Use reportedAt or fall back to createdAt
-          const reportedDate = new Date(incident.reportedAt || incident.createdAt);
-          return !isNaN(reportedDate.getTime()) && reportedDate >= (currentFilters.dateRange?.start as Date);
+          // Handle Firebase Timestamp or fallback to createdAt
+          const reportedDate = incident.reportedAt?.toDate?.() || 
+                              new Date(incident.reportedAt || incident.createdAt);
+          return !isNaN(reportedDate.getTime()) && 
+                 reportedDate >= (currentFilters.dateRange?.start as Date);
         });
       }
       
       if (currentFilters.dateRange.end) {
         result = result.filter(incident => {
-          // Use reportedAt or fall back to createdAt
-          const reportedDate = new Date(incident.reportedAt || incident.createdAt);
-          return !isNaN(reportedDate.getTime()) && reportedDate <= (currentFilters.dateRange?.end as Date);
+          // Handle Firebase Timestamp or fallback to createdAt
+          const reportedDate = incident.reportedAt?.toDate?.() || 
+                              new Date(incident.reportedAt || incident.createdAt);
+          return !isNaN(reportedDate.getTime()) && 
+                 reportedDate <= (currentFilters.dateRange?.end as Date);
         });
       }
     }
     
-    // Sort incidents - handle missing date fields
+    // Sort incidents with handling for Firebase Timestamps
     const sortBy = currentFilters.sortBy || 'date';
     const sortOrder = currentFilters.sortOrder || 'desc';
     
@@ -234,9 +182,15 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       
       switch (sortBy) {
         case 'date': {
-          // Get timestamps, fall back to createdAt if reportedAt is missing
-          const aTime = new Date(a.reportedAt || a.createdAt).getTime();
-          const bTime = new Date(b.reportedAt || b.createdAt).getTime();
+          // Support for Firebase Timestamp objects
+          const aTime = a.reportedAt?.toDate?.() 
+                    ? a.reportedAt.toDate().getTime() 
+                    : new Date(a.reportedAt || a.createdAt).getTime();
+          
+          const bTime = b.reportedAt?.toDate?.() 
+                    ? b.reportedAt.toDate().getTime() 
+                    : new Date(b.reportedAt || b.createdAt).getTime();
+          
           // Handle invalid dates
           comparison = !isNaN(aTime) && !isNaN(bTime) ? aTime - bTime : 0;
           break;
@@ -256,9 +210,64 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       return sortOrder === 'asc' ? comparison : -comparison;
     });
     
-    console.log(`After filtering: ${result.length} incidents`);
+    if (__DEV__) {
+      console.log(`After filtering: ${result.length} incidents`);
+    }
     setFilteredIncidents(result);
   }, []);
+  
+  // Fetch incidents manually (used for pull-to-refresh)
+  const fetchIncidents = useCallback(async () => {
+    try {
+      setError(null);
+      
+      let fetchedIncidents: Incident[] = [];
+      
+      try {
+        if (isUserIncidents) {
+          // Get incidents reported by current user using React Native Firebase SDK
+          const response = await incidentService.getIncidents({
+            reporterId: 'current'
+          });
+          
+          // Handle Firebase response format
+          if (response && response.incidents && Array.isArray(response.incidents)) {
+            fetchedIncidents = response.incidents;
+          } else if (Array.isArray(response)) {
+            fetchedIncidents = response;
+          }
+        } else {
+          // Get all incidents
+          const response = await incidentService.getIncidents();
+          
+          // Handle Firebase response format
+          if (response && response.incidents && Array.isArray(response.incidents)) {
+            fetchedIncidents = response.incidents;
+          } else if (Array.isArray(response)) {
+            fetchedIncidents = response;
+          }
+        }
+      } catch (fetchError) {
+        console.warn('Error fetching incidents, using cached data:', fetchError);
+      }
+      
+      // Only update incidents if we actually got some
+      if (fetchedIncidents.length > 0) {
+        setIncidents(fetchedIncidents);
+        applyFilters(fetchedIncidents, filters);
+      } else {
+        // Just reapply filters to existing incidents
+        applyFilters(incidents, filters);
+      }
+      
+    } catch (err) {
+      console.error('Error in fetchIncidents:', err);
+      setError('Failed to load incidents. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [isUserIncidents, filters, applyFilters, incidents]);
   
   // Update filters
   const updateFilters = useCallback((newFilters: Partial<IncidentFilter>) => {
@@ -273,7 +282,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     updateFilters({ search: text });
   }, [updateFilters]);
   
-  // Handle refresh remains the same but now uses fetchIncidents
+  // Handle refresh
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
     fetchIncidents();
@@ -294,13 +303,11 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       try {
         if (!router) {
           console.warn("Router is undefined, using alternative navigation");
-          // Fallback navigation using Linking or other approach
           return;
         }
         router.push(`/report/details/${incident.id}`);
       } catch (error) {
         console.error("Navigation error:", error);
-        // Show an error toast or message to the user
       }
     }
   };
@@ -310,27 +317,32 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     <TouchableOpacity
       style={[
         styles.incidentCard,
+        { backgroundColor: colors.card }
       ]}
       onPress={() => navigateToIncidentDetails(item)}
     >
       <View style={styles.incidentHeader}>
-        <View style={styles.typeIconContainer}>
+        <View style={[
+          styles.typeIconContainer, 
+          { backgroundColor: `${colors.primary}15` }
+        ]}>
           <Ionicons
             name={TypeIcons[item.type] || 'help-circle-outline'}
             size={24}
+            color={colors.primary}
           />
         </View>
         
         <View style={styles.headerText}>
           <Text 
-            style={[styles.incidentTitle]}
+            style={[styles.incidentTitle, { color: colors.text }]}
             numberOfLines={1}
           >
             {item.title || "Untitled Incident"}
           </Text>
           
           <View style={styles.incidentMeta}>
-            <Text style={[styles.incidentDate]}>
+            <Text style={[styles.incidentDate, { color: colors.textSecondary }]}>
               {safelyFormatDate(item.reportedAt || item.createdAt)}
             </Text>
           </View>
@@ -343,7 +355,7 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       </View>
       
       <Text 
-        style={[styles.incidentDescription]}
+        style={[styles.incidentDescription, { color: colors.textSecondary }]}
         numberOfLines={2}
       >
         {item.description || "No description provided"}
@@ -357,8 +369,9 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             <Ionicons 
               name="location-outline" 
               size={14} 
+              color={colors.textSecondary}
             />
-            <Text style={[styles.locationText]}>
+            <Text style={[styles.locationText, { color: colors.textSecondary }]}>
               {item.location.description || `${item.location.buildingId}, Floor ${item.location.floorId}`}
             </Text>
           </View>
@@ -393,16 +406,17 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       <Ionicons 
         name="alert-circle-outline" 
         size={64} 
+        color={colors.textSecondary}
       />
-      <Text style={[styles.emptyStateText]}>
+      <Text style={[styles.emptyStateText, { color: colors.textSecondary }]}>
         {emptyStateMessage}
       </Text>
       {Object.keys(filters).length > 0 && (
         <TouchableOpacity
-          style={[styles.resetButton]}
+          style={[styles.resetButton, { backgroundColor: colors.primary }]}
           onPress={resetFilters}
         >
-          <Text style={styles.resetButtonText}>Reset Filters</Text>
+          <Text style={[styles.resetButtonText, { color: colors.white }]}>Reset Filters</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -410,19 +424,20 @@ export const IncidentList: React.FC<IncidentListProps> = ({
   
   // Render filter options
   const renderFilterOptions = () => (
-    <View style={[styles.filterOptions]}>
-      <Text style={[styles.filterTitle]}>Filter By Status</Text>
+    <View style={[styles.filterOptions, { backgroundColor: colors.card }]}>
+      <Text style={[styles.filterTitle, { color: colors.text }]}>Filter By Status</Text>
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.status === undefined && styles.activeChip,
+            { borderColor: colors.border },
+            filters.status === undefined && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ status: undefined })}
         >
           <Text style={[
             styles.filterChipText,
-            filters.status === undefined && styles.activeChipText,
+            { color: filters.status === undefined ? colors.primary : colors.text }
           ]}>
             All
           </Text>
@@ -431,13 +446,14 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.status === 'reported' && styles.activeChip,
+            { borderColor: colors.border },
+            filters.status === 'reported' && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ status: 'reported' })}
         >
           <Text style={[
             styles.filterChipText,
-            filters.status === 'reported' && styles.activeChipText,
+            { color: filters.status === 'reported' ? colors.primary : colors.text }
           ]}>
             Reported
           </Text>
@@ -446,13 +462,14 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.status === 'in-progress' && styles.activeChip,
+            { borderColor: colors.border },
+            filters.status === 'in-progress' && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ status: 'in-progress' })}
         >
           <Text style={[
             styles.filterChipText,
-            filters.status === 'in-progress' && styles.activeChipText,
+            { color: filters.status === 'in-progress' ? colors.primary : colors.text }
           ]}>
             In Progress
           </Text>
@@ -461,31 +478,33 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.status === 'resolved' && styles.activeChip,
+            { borderColor: colors.border },
+            filters.status === 'resolved' && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ status: 'resolved' })}
         >
           <Text style={[
             styles.filterChipText,
-            filters.status === 'resolved' && styles.activeChipText,
+            { color: filters.status === 'resolved' ? colors.primary : colors.text }
           ]}>
             Resolved
           </Text>
         </TouchableOpacity>
       </View>
       
-      <Text style={[styles.filterTitle]}>Filter By Type</Text>
+      <Text style={[styles.filterTitle, { color: colors.text }]}>Filter By Type</Text>
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.type === undefined && styles.activeChip,
+            { borderColor: colors.border },
+            filters.type === undefined && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ type: undefined })}
         >
           <Text style={[
             styles.filterChipText,
-            filters.type === undefined && styles.activeChipText,
+            { color: filters.type === undefined ? colors.primary : colors.text }
           ]}>
             All
           </Text>
@@ -496,18 +515,20 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             key={type}
             style={[
               styles.filterChip,
-              filters.type === type && styles.activeChip,
+              { borderColor: colors.border },
+              filters.type === type && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
             ]}
             onPress={() => updateFilters({ type: type as IncidentType })}
           >
             <Ionicons 
               name={TypeIcons[type as IncidentType]} 
               size={14} 
+              color={filters.type === type ? colors.primary : colors.text}
               style={styles.chipIcon}
             />
             <Text style={[
               styles.filterChipText,
-              filters.type === type && styles.activeChipText,
+              { color: filters.type === type ? colors.primary : colors.text }
             ]}>
               {type.charAt(0).toUpperCase() + type.slice(1)}
             </Text>
@@ -515,12 +536,13 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         ))}
       </View>
       
-      <Text style={[styles.filterTitle]}>Sort By</Text>
+      <Text style={[styles.filterTitle, { color: colors.text }]}>Sort By</Text>
       <View style={styles.filterRow}>
         <TouchableOpacity
           style={[
             styles.filterChip,
-            (filters.sortBy === 'date' || !filters.sortBy) && styles.activeChip,
+            { borderColor: colors.border },
+            (filters.sortBy === 'date' || !filters.sortBy) && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ 
             sortBy: 'date', 
@@ -529,12 +551,13 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         >
           <Text style={[
             styles.filterChipText,
-            (filters.sortBy === 'date' || !filters.sortBy) && styles.activeChipText,
+            { color: (filters.sortBy === 'date' || !filters.sortBy) ? colors.primary : colors.text }
           ]}>
             Date {(filters.sortBy === 'date' || !filters.sortBy) && (
               <Ionicons 
                 name={filters.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
                 size={14} 
+                color={(filters.sortBy === 'date' || !filters.sortBy) ? colors.primary : colors.text}
               />
             )}
           </Text>
@@ -543,7 +566,8 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.sortBy === 'severity' && styles.activeChip,
+            { borderColor: colors.border },
+            filters.sortBy === 'severity' && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ 
             sortBy: 'severity', 
@@ -552,12 +576,13 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         >
           <Text style={[
             styles.filterChipText,
-            filters.sortBy === 'severity' && styles.activeChipText,
+            { color: filters.sortBy === 'severity' ? colors.primary : colors.text }
           ]}>
             Severity {filters.sortBy === 'severity' && (
               <Ionicons 
                 name={filters.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
                 size={14} 
+                color={filters.sortBy === 'severity' ? colors.primary : colors.text}
               />
             )}
           </Text>
@@ -566,7 +591,8 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         <TouchableOpacity
           style={[
             styles.filterChip,
-            filters.sortBy === 'status' && styles.activeChip,
+            { borderColor: colors.border },
+            filters.sortBy === 'status' && [styles.activeChip, { backgroundColor: `${colors.primary}15`, borderColor: colors.primary }]
           ]}
           onPress={() => updateFilters({ 
             sortBy: 'status', 
@@ -575,12 +601,13 @@ export const IncidentList: React.FC<IncidentListProps> = ({
         >
           <Text style={[
             styles.filterChipText,
-            filters.sortBy === 'status' && styles.activeChipText,
+            { color: filters.sortBy === 'status' ? colors.primary : colors.text }
           ]}>
             Status {filters.sortBy === 'status' && (
               <Ionicons 
                 name={filters.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} 
                 size={14} 
+                color={filters.sortBy === 'status' ? colors.primary : colors.text}
               />
             )}
           </Text>
@@ -588,16 +615,22 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       </View>
       
       <TouchableOpacity
-        style={[styles.resetFiltersButton]}
+        style={[
+          styles.resetFiltersButton, 
+          { 
+            borderColor: colors.border,
+            backgroundColor: `${colors.primary}10`
+          }
+        ]}
         onPress={resetFilters}
       >
-        <Ionicons name="refresh" size={16} />
-        <Text style={[styles.resetFiltersText]}>Reset All Filters</Text>
+        <Ionicons name="refresh" size={16} color={colors.text} />
+        <Text style={[styles.resetFiltersText, { color: colors.text }]}>Reset All Filters</Text>
       </TouchableOpacity>
     </View>
   );
   
-  // Split your useEffect into two separate ones - one for subscription and one for filters
+  // Split useEffect into two separate ones - one for subscription and one for filters
 
   // 1. First useEffect - subscription and initial fetch
   useEffect(() => {
@@ -607,24 +640,31 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     let unsubscribe: (() => void) | null = null;
     
     try {
-      console.log("Setting up incidents subscription...");
-      // Use the Firebase subscription
+      // Use the Firebase realtime subscription from incidentService
       unsubscribe = incidentService.subscribeToIncidents((updatedIncidents) => {
-        console.log("Received real-time update with", updatedIncidents.length, "incidents");
+        if (__DEV__) {
+          console.log("Received real-time update with", updatedIncidents.length, "incidents");
+        }
         
         // Ensure we have valid data before updating state
         if (Array.isArray(updatedIncidents)) {
-          setIncidents(updatedIncidents);
+          // Filter to user's incidents if needed
+          const filteredByUser = isUserIncidents 
+            ? updatedIncidents.filter(incident => 
+                incident.reporterId === 'current' || 
+                incident.reporterId === incidentService.getCurrentUserId?.())
+            : updatedIncidents;
+          
+          setIncidents(filteredByUser);
           // Apply current filters to the new data
-          applyFilters(updatedIncidents, filters);
-          // Important: Set loading to false when we receive data from subscription
+          applyFilters(filteredByUser, filters);
+          // Set loading to false when we receive data
           setLoading(false);
           setRefreshing(false);
         }
       });
     } catch (error) {
       console.error('Error setting up real-time subscription:', error);
-      // Set error and turn off loading if subscription setup fails
       setError('Failed to connect to real-time updates. Please try again.');
       setLoading(false);
       setRefreshing(false);
@@ -632,12 +672,11 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     
     // Cleanup subscription on unmount
     return () => {
-      console.log("Cleaning up incidents subscription");
       if (typeof unsubscribe === 'function') {
         unsubscribe();
       }
     };
-  }, []); // Empty dependency array - only run on mount and unmount
+  }, [isUserIncidents]); // Only re-run if isUserIncidents changes
 
   // 2. Second useEffect - handle filter changes
   useEffect(() => {
@@ -645,22 +684,28 @@ export const IncidentList: React.FC<IncidentListProps> = ({
     if (incidents.length === 0) return;
     
     // When filters change, just reapply them to existing data
-    console.log("Filters changed, reapplying to existing incidents");
     applyFilters(incidents, filters);
   }, [filters, incidents, applyFilters]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {showFilters && (
         <View style={styles.searchContainer}>
           <View style={[
             styles.searchInputContainer,
+            { 
+              borderColor: colors.border,
+              backgroundColor: colors.card 
+            }
           ]}>
-            <Ionicons name="search" size={18} />
+            <Ionicons name="search" size={18} color={colors.textSecondary} />
             <TextInput
-              style={[styles.searchInput]}
+              style={[
+                styles.searchInput,
+                { color: colors.text }
+              ]}
               placeholder="Search incidents..."
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textSecondary}
               value={searchQuery}
               onChangeText={handleSearch}
               clearButtonMode="while-editing"
@@ -670,17 +715,21 @@ export const IncidentList: React.FC<IncidentListProps> = ({
           <TouchableOpacity
             style={[
               styles.filterButton,
+              { 
+                borderColor: colors.border,
+                backgroundColor: colors.card 
+              }
             ]}
             onPress={() => setShowFilterOptions(!showFilterOptions)}
           >
             <Ionicons 
               name="options-outline" 
               size={20} 
-              color={activeFilterCount > 0 ? '#0EA5E9' : '#000'} 
+              color={activeFilterCount > 0 ? colors.primary : colors.text} 
             />
             
             {activeFilterCount > 0 && (
-              <View style={styles.filterBadge}>
+              <View style={[styles.filterBadge, { backgroundColor: colors.primary }]}>
                 <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
               </View>
             )}
@@ -692,17 +741,17 @@ export const IncidentList: React.FC<IncidentListProps> = ({
       
       {loading && !refreshing ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0EA5E9" />
-          <Text style={[styles.loadingText]}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
             Loading incidents...
           </Text>
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#DC2626" />
-          <Text style={[styles.errorText]}>{error}</Text>
+          <Ionicons name="alert-circle" size={48} color={colors.error} />
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
           <TouchableOpacity
-            style={[styles.retryButton]}
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
             onPress={fetchIncidents}
           >
             <Text style={styles.retryButtonText}>Retry</Text>
@@ -720,8 +769,8 @@ export const IncidentList: React.FC<IncidentListProps> = ({
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              colors={['#0EA5E9']}
-              tintColor="#0EA5E9"
+              colors={[colors.primary]}
+              tintColor={colors.primary}
             />
           }
         />
@@ -768,7 +817,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -5,
     right: -5,
-    backgroundColor: '#0EA5E9',
     borderRadius: 10,
     width: 20,
     height: 20,
@@ -805,7 +853,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
     marginRight: 12,
   },
   headerText: {
@@ -949,8 +996,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   activeChip: {
-    backgroundColor: 'rgba(14, 165, 233, 0.1)',
-    borderColor: '#0EA5E9',
+    borderWidth: 1,
   },
   filterChipText: {
     fontSize: 14,
@@ -975,6 +1021,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontWeight: '500',
   },
+  white: '#FFFFFF',
 });
 
 export default IncidentList;

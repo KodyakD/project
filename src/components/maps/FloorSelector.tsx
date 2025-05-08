@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { FloorType } from '@/types/map.types';
+import { FloorType } from '../../types/map.types';
 import { FLOORS } from '../../constants/floors';
 import Colors from '../../constants/Colors';
 

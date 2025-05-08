@@ -15,7 +15,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS, SIZES } from '../../constants';
 import authService from '../../services/authService';
 import { AppError } from '../../utils/errors';

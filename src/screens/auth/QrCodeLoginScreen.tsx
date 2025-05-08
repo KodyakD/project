@@ -11,7 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Camera, CameraType, BarCodeScanningResult } from 'expo-camera';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../context/AuthContext';
 import { COLORS, FONTS } from '../../constants';
 
 const QrCodeLoginScreen: React.FC = () => {

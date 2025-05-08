@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { IncidentStatus } from '@/services/incidentService';
+import { IncidentStatus } from '../../services/incidentService';
 
 interface StatusTimelineProps {
   status: IncidentStatus;

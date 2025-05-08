@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text } from 'react-native';
 import { Circle, G, Path } from 'react-native-svg';
-import { Incident } from '@/services/incidentService';
+import { Incident } from '../../services/incidentService';
 import { Ionicons } from '@expo/vector-icons';
 
 interface IncidentOverlayProps {
