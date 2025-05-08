@@ -18,7 +18,6 @@
     },
     "plugins": [
       "expo-router",
-      "expo-barcode-scanner",
       "expo-font",
       "expo-secure-store",
       "expo-web-browser"
